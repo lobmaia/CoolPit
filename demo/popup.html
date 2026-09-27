@@ -412,254 +412,229 @@
 
         [hidden] { display: none !important; }
 
-        /* ---------- Simulation view (shown after Accept / Reject / Continue) ---------- */
-        .sim {
-            --sim-bg: #0f141b; --sim-panel: #161d27; --sim-line: #273142; --sim-text: #e5e9f0;
-            --sim-muted: #8b96a8; --vest-off: #4b5563; --vest-low: #67e8f9; --vest-medium: #22d3ee;
-            --vest-high: #0ea5e9; --warn: #fbbf24;
-            width: 100%;
-            max-width: 850px;
-            background: var(--sim-bg);
-            color: var(--sim-text);
-            border-radius: 16px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+        /* ---------- Race view (after Accept / Reject / Continue): every car on the Lusail circuit ---------- */
+        .race {
+            --race-muted: #7d8898;
+            --race-panel: rgba(10, 13, 18, 0.76);
+            --race-line: rgba(255, 255, 255, 0.09);
+            --vest: #22d3ee;
+            position: fixed;
+            inset: 0;
+            z-index: 40;
             overflow: hidden;
-            border: 1px solid var(--sim-line);
+            color: #e8edf3;
+            background: radial-gradient(120% 95% at 45% 45%, #172030 0%, #0b0f15 62%, #07090d 100%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         }
 
-        .sim-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 16px;
-            flex-wrap: wrap;
-            padding: 20px 28px;
-            border-bottom: 1px solid var(--sim-line);
-        }
-
-        .sim-title {
-            font-size: 22px;
-            font-weight: 900;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-        }
-
-        .sim-sub {
-            margin-top: 4px;
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-            font-weight: 700;
-            color: var(--sim-muted);
-            letter-spacing: 1.5px;
-        }
-
-        .sim-badge {
-            font-size: 13px;
-            font-weight: 700;
-            padding: 8px 14px;
-            border-radius: 8px;
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
-            background: rgba(14, 165, 233, 0.15);
-            color: var(--vest-low);
-            border: 1px solid rgba(14, 165, 233, 0.4);
-        }
-
-        .sim-badge.rejected {
-            background: rgba(251, 191, 36, 0.12);
-            color: var(--warn);
-            border-color: rgba(251, 191, 36, 0.4);
-        }
-
-        .sim-body {
-            display: grid;
-            grid-template-columns: 1.25fr 1fr;
-            gap: 24px;
-            padding: 24px 28px;
-        }
-
-        .track-box {
-            background: var(--sim-panel);
-            border: 1px solid var(--sim-line);
-            border-radius: 12px;
-            padding: 14px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .track-svg {
+        .race canvas {
+            position: absolute;
+            inset: 0;
             width: 100%;
-            height: auto;
+            height: 100%;
             display: block;
         }
 
-        .lap-counter {
-            display: flex;
-            justify-content: space-between;
-            align-items: baseline;
+        .race-top {
+            position: absolute;
+            top: 24px;
+            left: 28px;
+            display: grid;
+            gap: 4px;
+        }
+
+        .race-event,
+        .hud-label,
+        .tower-head {
             font-family: 'Courier New', monospace;
-            font-weight: 800;
-        }
-
-        .lap-counter b {
-            font-size: 30px;
-            letter-spacing: 1px;
-            font-variant-numeric: tabular-nums;
-        }
-
-        .lap-counter span {
-            color: var(--sim-muted);
-            font-size: 12px;
-            letter-spacing: 1.5px;
-        }
-
-        .sim-panel {
-            display: flex;
-            flex-direction: column;
-            gap: 18px;
-        }
-
-        .sim-label {
             font-size: 11px;
             font-weight: 700;
-            color: var(--sim-muted);
+            letter-spacing: 2.5px;
             text-transform: uppercase;
-            letter-spacing: 1.2px;
-            margin-bottom: 8px;
+            color: var(--race-muted);
         }
 
-        .levels {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 6px;
-        }
-
-        .level {
-            text-align: center;
-            padding: 10px 0;
-            border-radius: 8px;
-            font-size: 12px;
-            font-weight: 800;
-            letter-spacing: 0.5px;
-            background: var(--sim-panel);
-            color: var(--sim-muted);
-            border: 1px solid var(--sim-line);
-            transition: all 0.5s;
-        }
-
-        .level.was {
-            border-style: dashed;
-            border-color: var(--sim-muted);
-        }
-
-        .level.active {
-            color: #0b1220;
-            border-color: transparent;
-            box-shadow: 0 0 16px rgba(34, 211, 238, 0.45);
-        }
-
-        .level.active[data-level="OFF"] { background: var(--vest-off); color: #fff; box-shadow: none; }
-        .level.active[data-level="LOW"] { background: var(--vest-low); }
-        .level.active[data-level="MEDIUM"] { background: var(--vest-medium); }
-        .level.active[data-level="HIGH"] { background: var(--vest-high); color: #fff; }
-
-        .level-note {
-            margin-top: 8px;
-            font-size: 12px;
-            color: var(--sim-muted);
-        }
-
-        .capacity-head {
+        .race-lap {
             display: flex;
-            justify-content: space-between;
             align-items: baseline;
+            gap: 10px;
+            font-weight: 900;
         }
 
-        .capacity-value {
+        .race-lap span {
+            font-size: 13px;
+            letter-spacing: 3px;
+            color: var(--race-muted);
+        }
+
+        .race-lap b {
+            font-size: 60px;
+            line-height: 1;
+            letter-spacing: -1px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .race-lap i {
+            font-style: normal;
+            font-size: 22px;
+            color: var(--race-muted);
+        }
+
+        .tower {
+            position: absolute;
+            top: 24px;
+            right: 24px;
+            width: 176px;
+            margin: 0;
+            padding: 10px 0;
+            list-style: none;
+            background: var(--race-panel);
+            border: 1px solid var(--race-line);
+            border-radius: 12px;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+
+        .tower-head {
+            padding: 0 14px 8px;
+        }
+
+        .tower li {
+            display: grid;
+            grid-template-columns: 20px 4px 1fr;
+            align-items: center;
+            gap: 9px;
+            padding: 3px 14px;
             font-family: 'Courier New', monospace;
-            font-size: 20px;
+            font-size: 13px;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .tower .pos { color: var(--race-muted); text-align: right; }
+        .tower .bar { width: 4px; height: 14px; border-radius: 2px; }
+        .tower li.ours { background: rgba(34, 211, 238, 0.13); }
+        .tower li.ours .code { color: #67e8f9; }
+
+        .race-banner {
+            position: absolute;
+            top: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 20px;
+            border-radius: 999px;
+            background: var(--race-panel);
+            border: 1px solid rgba(103, 232, 249, 0.38);
+            color: #67e8f9;
+            font-size: 13px;
+            font-weight: 800;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            white-space: nowrap;
+            transition: opacity 0.6s;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+
+        .race-banner.rejected { border-color: rgba(251, 191, 36, 0.45); color: #fbbf24; }
+        .race-banner.fade { opacity: 0; }
+
+        .race-flag {
+            position: absolute;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 6px 18px;
+            border-radius: 6px;
+            background: #fbbf24;
+            color: #111827;
+            font-size: 13px;
+            font-weight: 900;
+            letter-spacing: 3px;
+        }
+
+        .hud {
+            position: absolute;
+            left: 50%;
+            bottom: 26px;
+            transform: translateX(-50%);
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 22px;
+            max-width: calc(100% - 32px);
+            padding: 14px 24px;
+            background: var(--race-panel);
+            border: 1px solid var(--race-line);
+            border-radius: 14px;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        .hud-block { display: grid; gap: 6px; }
+        .hud-sep { width: 1px; align-self: stretch; background: var(--race-line); }
+
+        .hud-value {
+            font-family: 'Courier New', monospace;
+            font-size: 18px;
             font-weight: 800;
             font-variant-numeric: tabular-nums;
         }
 
-        .capacity-bar {
-            height: 12px;
-            border-radius: 6px;
-            background: var(--sim-panel);
-            border: 1px solid var(--sim-line);
+        .pips { display: flex; gap: 4px; }
+
+        .pip {
+            width: 26px;
+            height: 8px;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            transition: background 0.5s, box-shadow 0.5s;
+        }
+
+        .pip.on { background: var(--vest); box-shadow: 0 0 10px var(--vest); }
+
+        .hud-cap {
+            width: 140px;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.1);
             overflow: hidden;
         }
 
-        .capacity-fill {
+        .hud-cap div {
             height: 100%;
             width: 0;
-            background: linear-gradient(90deg, var(--vest-high), var(--vest-low));
+            background: linear-gradient(90deg, #0ea5e9, #67e8f9);
             transition: width 0.6s ease;
         }
 
-        .cond-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 8px;
-        }
-
-        .cond-cell {
-            background: var(--sim-panel);
-            border: 1px solid var(--sim-line);
-            border-radius: 8px;
-            padding: 8px 10px;
-        }
-
-        .cond-cell span {
-            display: block;
-            font-size: 10px;
-            font-weight: 700;
-            color: var(--sim-muted);
-            letter-spacing: 1px;
-            text-transform: uppercase;
-        }
-
-        .cond-cell b {
-            font-family: 'Courier New', monospace;
-            font-size: 16px;
-            font-variant-numeric: tabular-nums;
-        }
-
-        .cond-cell b.flag { color: var(--warn); }
-
-        .lap-log {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-            color: var(--sim-muted);
-            max-height: 110px;
-            overflow-y: auto;
-        }
-
-        .lap-log div.new { color: var(--sim-text); }
-
-        .sim-footer {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 12px;
-            flex-wrap: wrap;
-            padding: 16px 28px;
-            border-top: 1px solid var(--sim-line);
-            font-size: 13px;
-            color: var(--sim-muted);
+        .race-skip {
+            position: absolute;
+            right: 24px;
+            bottom: 30px;
         }
 
         .btn-ghost {
-            background: transparent;
-            color: var(--sim-text);
-            border: 1px solid var(--sim-line);
+            background: rgba(10, 13, 18, 0.6);
+            color: #e8edf3;
+            border: 1px solid rgba(255, 255, 255, 0.16);
         }
 
-        .btn-ghost:hover { background: var(--sim-panel); }
+        .btn-ghost:hover { background: rgba(255, 255, 255, 0.08); }
+
+        @media (max-width: 900px) {
+            .tower { display: none; }
+            .race-lap b { font-size: 42px; }
+            .race-skip { bottom: auto; top: 24px; }
+            .race-banner { top: 118px; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .status-led, .spinner { animation: none; }
+            .needle { transition: none; }
+            .pip, .hud-cap div, .race-banner { transition: none; }
+        }
 
         /* ---------- 3D cooling vest (teammate's page in an iframe, loaded in the background) ---------- */
         .stage3d {
@@ -709,7 +684,7 @@
         /* ---------- Toasts: short pit-wall messages, shown above the pop-up, simulation and 3D ---------- */
         .toasts {
             position: fixed;
-            top: 72px;   /* below the 3D stage bar */
+            top: 132px;   /* below the 3D stage bar and the race view's banner + flag */
             left: 50%;
             transform: translateX(-50%);
             z-index: 100;
@@ -775,11 +750,6 @@
         /* Auto-play: ring on the button the pit wall is about to press */
         .btn.auto-pick {
             box-shadow: 0 0 0 3px #ffffff, 0 0 0 6px var(--btn);
-        }
-
-        @media (max-width: 768px) {
-            .sim-body { grid-template-columns: 1fr; padding: 20px; }
-            .sim-header, .sim-footer { padding: 16px 20px; }
         }
 
         @media (prefers-reduced-motion: reduce) {
@@ -918,69 +888,45 @@
         </div>
     </div>
 
-    <div class="sim" id="sim" hidden>
-        <div class="sim-header">
-            <div>
-                <div class="sim-title">Race simulation</div>
-                <div class="sim-sub" id="sim-sub"></div>
-            </div>
-            <div class="sim-badge" id="sim-badge"></div>
+    <div class="race" id="race" hidden>
+        <canvas id="race-canvas" aria-label="All cars on the circuit"></canvas>
+
+        <div class="race-top">
+            <div class="race-event" id="race-event"></div>
+            <div class="race-lap"><span>LAP</span><b id="race-lap">--</b><i id="race-total"></i></div>
         </div>
 
-        <div class="sim-body">
-            <div class="track-box">
-                <svg class="track-svg" id="track-svg" viewBox="-40 -40 1080 800" aria-label="Track map">
-                    <path id="track-path" d="" fill="none" stroke="#273142" stroke-width="26" stroke-linejoin="round"/>
-                    <path id="track-line" d="" fill="none" stroke="#8b96a8" stroke-width="4" stroke-linejoin="round"/>
-                    <circle id="car-halo" r="26" fill="#22d3ee" opacity="0.25"/>
-                    <circle id="car" r="13" fill="#22d3ee" stroke="#0f141b" stroke-width="4"/>
-                </svg>
-                <div class="lap-counter">
-                    <span>LAP</span>
-                    <b id="sim-lap">--</b>
-                </div>
+        <div class="race-banner" id="race-banner"></div>
+        <div class="race-flag" id="race-flag" hidden></div>
+
+        <ol class="tower" id="tower" aria-label="Running order"></ol>
+
+        <div class="hud">
+            <div class="hud-block">
+                <span class="hud-label">Cooling vest</span>
+                <div class="pips" id="pips"><i class="pip"></i><i class="pip"></i><i class="pip"></i></div>
             </div>
-
-            <div class="sim-panel">
-                <div>
-                    <div class="sim-label">Cooling vest</div>
-                    <div class="levels" id="levels">
-                        <div class="level" data-level="OFF">OFF</div>
-                        <div class="level" data-level="LOW">LOW</div>
-                        <div class="level" data-level="MEDIUM">MEDIUM</div>
-                        <div class="level" data-level="HIGH">HIGH</div>
-                    </div>
-                    <div class="level-note" id="level-note"></div>
-                </div>
-
-                <div>
-                    <div class="capacity-head">
-                        <div class="sim-label">Cooling capacity</div>
-                        <div class="capacity-value" id="capacity-value">--%</div>
-                    </div>
-                    <div class="capacity-bar"><div class="capacity-fill" id="capacity-fill"></div></div>
-                </div>
-
-                <div>
-                    <div class="sim-label">This lap</div>
-                    <div class="cond-grid">
-                        <div class="cond-cell"><span>Heat index</span><b id="sim-hi">--</b></div>
-                        <div class="cond-cell"><span>Air</span><b id="sim-air">--</b></div>
-                        <div class="cond-cell"><span>Track</span><b id="sim-status">--</b></div>
-                    </div>
-                </div>
-
-                <div>
-                    <div class="sim-label">Lap log</div>
-                    <div class="lap-log" id="lap-log"></div>
-                </div>
+            <div class="hud-block">
+                <span class="hud-label">Setting</span>
+                <span class="hud-value" id="hud-setting">--</span>
+            </div>
+            <div class="hud-sep"></div>
+            <div class="hud-block">
+                <span class="hud-label">Capacity <span id="hud-cap-val"></span></span>
+                <div class="hud-cap"><div id="hud-cap"></div></div>
+            </div>
+            <div class="hud-sep"></div>
+            <div class="hud-block">
+                <span class="hud-label">Heat index</span>
+                <span class="hud-value" id="hud-hi">--</span>
+            </div>
+            <div class="hud-block">
+                <span class="hud-label">Air</span>
+                <span class="hud-value" id="hud-air">--</span>
             </div>
         </div>
 
-        <div class="sim-footer">
-            <span id="sim-progress" aria-live="polite"></span>
-            <button type="button" class="btn btn-ghost" id="sim-skip">Skip to next decision</button>
-        </div>
+        <button type="button" class="btn btn-ghost race-skip" id="race-skip">Skip ›</button>
     </div>
 
     <div class="stage3d" id="stage3d" aria-hidden="true">
@@ -1243,12 +1189,15 @@
             }
         };
 
-        // ---- Simulation view: drives the laps after a decision with the chosen vest setting ----
-        var LAP_MS = 1500;            // animation time per lap
-        var END_PAUSE_MS = 1500;      // pause before the next decision appears
+        // ---- Race view: every car on the circuit for the laps after a decision (real lap timing) ----
+        var LAP_SECONDS = 2.6;        // on-screen seconds per lap of our driver
+        var END_PAUSE_MS = 1800;      // pause on the final frame before the next decision
         var VEST_COLOR = { OFF: "#9ca3af", LOW: "#67e8f9", MEDIUM: "#22d3ee", HIGH: "#0ea5e9" };
+        var VEST_LEVEL = { OFF: 0, LOW: 1, MEDIUM: 2, HIGH: 3 };
+        var FLAG_TEXT = { SAFETY_CAR: "SAFETY CAR", VSC: "VIRTUAL SAFETY CAR", VSC_ENDING: "VSC ENDING",
+                          YELLOW: "YELLOW FLAG", RED_FLAG: "RED FLAG" };
         var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-        var trackReady = null;        // promise, loaded once
+        var track = null, trackReady = null;
 
         function loadTrack() {
             if (trackReady) return trackReady;
@@ -1256,96 +1205,155 @@
                 if (!r.ok) throw new Error("no track");
                 return r.json();
             }).then(function (t) {
-                var d = t.points.map(function (p, i) { return (i ? "L" : "M") + p[0] + " " + p[1]; }).join(" ") + " Z";
-                $("track-path").setAttribute("d", d);
-                $("track-line").setAttribute("d", d);
-                var maxY = Math.max.apply(null, t.points.map(function (p) { return p[1]; }));
-                $("track-svg").setAttribute("viewBox", "-40 -40 1080 " + Math.round(maxY + 80));
-                return true;
-            }).catch(function () {
-                $("track-svg").style.display = "none";   // simulation still runs without the map
-                return false;
-            });
+                var pts = t.points, cum = [0];
+                for (var i = 1; i <= pts.length; i++) {
+                    var a = pts[i - 1], b = pts[i % pts.length];
+                    cum.push(cum[i - 1] + Math.hypot(b[0] - a[0], b[1] - a[1]));
+                }
+                var xs = pts.map(function (p) { return p[0]; }), ys = pts.map(function (p) { return p[1]; });
+                track = { pts: pts, cum: cum, total: cum[cum.length - 1],
+                          minX: Math.min.apply(null, xs), maxX: Math.max.apply(null, xs),
+                          minY: Math.min.apply(null, ys), maxY: Math.max.apply(null, ys) };
+                return track;
+            }).catch(function () { return null; });
             return trackReady;
         }
 
-        function placeCar(fraction) {
-            var path = $("track-line");
-            if (!path.getTotalLength || !path.getAttribute("d")) return;
-            var len = path.getTotalLength();
-            var p = path.getPointAtLength((fraction % 1) * len);
-            ["car", "car-halo"].forEach(function (id) {
-                $(id).setAttribute("cx", p.x);
-                $(id).setAttribute("cy", p.y);
-            });
+        function pointAt(frac) {
+            var d = ((frac % 1) + 1) % 1 * track.total, cum = track.cum, lo = 0, hi = cum.length - 1;
+            while (hi - lo > 1) { var mid = (lo + hi) >> 1; if (cum[mid] <= d) lo = mid; else hi = mid; }
+            var a = track.pts[lo % track.pts.length], b = track.pts[(lo + 1) % track.pts.length];
+            var k = (d - cum[lo]) / ((cum[lo + 1] - cum[lo]) || 1);
+            return [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k];
         }
 
-        function showSimLap(sim, i) {
-            var lap = sim.laps[i];
-            $("sim-lap").textContent = lap.lap + " / " + sim.totalLaps;
-            $("sim-hi").textContent = lap.heat_index_c + "°C";
-            $("sim-air").textContent = lap.air_temp_c + "°C";
-            var status = $("sim-status");
-            status.textContent = lap.track_status.replace("_", " ");
-            status.className = lap.track_status === "GREEN" ? "" : "flag";
-            var prevStatus = i ? sim.laps[i - 1].track_status : "GREEN";
-            if (lap.track_status !== "GREEN" && lap.track_status !== prevStatus) {
-                toast("flag", "Lap " + lap.lap + " · " + lap.track_status.replace("_", " "),
-                      "Vest stays on " + sim.setting_after + " · heat index " + lap.heat_index_c + "°C");
+        /** Real race progress (laps completed + fraction) of one car at window time t, or null when off track. */
+        function carProgress(driver, t) {
+            var laps = driver.laps;
+            for (var i = 0; i < laps.length; i++) {
+                var n = laps[i][0], start = laps[i][1], dur = laps[i][2];
+                if (t >= start && t < start + dur) return (n - 1) + (t - start) / dur;
             }
-            setCapacity(lap.capacity_pct);
-            var row = document.createElement("div");
-            row.className = "new";
-            row.textContent = "Lap " + lap.lap + " · HI " + lap.heat_index_c + "°C · " +
-                lap.track_status.replace("_", " ") + " · " + lap.capacity_pct + "%";
-            var log = $("lap-log");
-            Array.prototype.forEach.call(log.children, function (c) { c.className = ""; });
-            log.appendChild(row);
-            log.scrollTop = log.scrollHeight;
-            $("sim-progress").textContent = "Driving lap " + lap.lap + " (" + (i + 1) + " of " + sim.laps.length +
-                ") with the vest on " + sim.setting_after + "…";
+            if (laps.length && t < laps[0][1]) return laps[0][0] - 1;   // just before its first lap in the window
+            return null;                                                  // retired or finished
         }
 
-        function setCapacity(pct) {
-            $("capacity-value").textContent = pct + "%";
-            $("capacity-fill").style.width = Math.max(0, Math.min(100, pct)) + "%";
-        }
-
-        function setupSimView(sim, meta) {
-            var first = sim.laps.length ? sim.laps[0].lap : sim.decision_lap;
-            var last = sim.laps.length ? sim.laps[sim.laps.length - 1].lap : sim.decision_lap;
-            $("sim-sub").textContent = "LAPS " + first + "–" + last + " · " + (meta.race || "") + " · " + (meta.driver || "");
-
-            var badge = $("sim-badge");
-            badge.className = "sim-badge";
-            if (!sim.change_required) {
-                badge.textContent = "No change · " + sim.setting_after;
-            } else if (sim.accepted) {
-                badge.textContent = "Accepted · " + sim.setting_before + " → " + sim.setting_after;
-            } else {
-                badge.textContent = "Rejected · stayed " + sim.setting_after;
-                badge.className = "sim-badge rejected";
+        /** Canvas sizing + a cached image of the circuit, redrawn on resize. */
+        function RaceCanvas(canvas) {
+            var self = this, ctx = canvas.getContext("2d"), cache = document.createElement("canvas");
+            self.ctx = ctx;
+            self.resize = function () {
+                var dpr = Math.min(window.devicePixelRatio || 1, 2);
+                var w = canvas.clientWidth, h = canvas.clientHeight;
+                canvas.width = cache.width = Math.round(w * dpr);
+                canvas.height = cache.height = Math.round(h * dpr);
+                var wide = w > 900;
+                var padL = 60, padR = wide ? 240 : 40, padT = wide ? 120 : 170, padB = 130;
+                var sw = (w - padL - padR) / (track.maxX - track.minX), sh = (h - padT - padB) / (track.maxY - track.minY);
+                var s = Math.max(0.1, Math.min(sw, sh));
+                var ox = padL + ((w - padL - padR) - (track.maxX - track.minX) * s) / 2 - track.minX * s;
+                var oy = padT + ((h - padT - padB) - (track.maxY - track.minY) * s) / 2 - track.minY * s;
+                self.map = function (p) { return [(ox + p[0] * s) * dpr, (oy + p[1] * s) * dpr]; };
+                self.dpr = dpr;
+                drawTrack(cache.getContext("2d"));
+            };
+            function drawTrack(c) {
+                var d = self.dpr;
+                c.clearRect(0, 0, cache.width, cache.height);
+                c.lineJoin = "round"; c.lineCap = "round";
+                var path = new Path2D();
+                track.pts.forEach(function (p, i) { var m = self.map(p); if (i) path.lineTo(m[0], m[1]); else path.moveTo(m[0], m[1]); });
+                path.closePath();
+                [[46, "rgba(103, 232, 249, 0.035)"], [30, "rgba(255, 255, 255, 0.07)"], [24, "#1a212b"],
+                 [2, "rgba(255, 255, 255, 0.06)"]].forEach(function (st) {
+                    c.lineWidth = st[0] * d; c.strokeStyle = st[1]; c.stroke(path);
+                });
+                // start / finish line: a short chequered bar across the track
+                var p0 = self.map(pointAt(0)), p1 = self.map(pointAt(0.004));
+                var ang = Math.atan2(p1[1] - p0[1], p1[0] - p0[0]) + Math.PI / 2, sq = 3 * d;
+                c.save(); c.translate(p0[0], p0[1]); c.rotate(ang);
+                for (var i = -4; i < 4; i++) for (var j = 0; j < 2; j++) {
+                    c.fillStyle = (i + j) % 2 ? "#e8edf3" : "#111827";
+                    c.fillRect(i * sq, (j - 1) * sq, sq, sq);
+                }
+                c.restore();
             }
-
-            document.querySelectorAll("#levels .level").forEach(function (el) {
-                var lvl = el.dataset.level;
-                el.classList.toggle("active", lvl === sim.setting_after);
-                el.classList.toggle("was", sim.setting_before !== sim.setting_after && lvl === sim.setting_before);
-            });
-            var rate = "−" + sim.capacity_use_per_lap + "% capacity per lap";
-            $("level-note").textContent = !sim.change_required ? "Kept " + sim.setting_after + " · " + rate
-                : sim.accepted ? "Changed " + sim.setting_before + " → " + sim.setting_after + " · " + rate
-                : "Kept " + sim.setting_after + " (Gemini recommended " + sim.recommended + ") · " + rate;
-
-            var color = VEST_COLOR[sim.setting_after] || "#22d3ee";
-            $("car").setAttribute("fill", color);
-            $("car-halo").setAttribute("fill", color);
-            $("car-halo").setAttribute("r", { OFF: 0, LOW: 20, MEDIUM: 26, HIGH: 34 }[sim.setting_after] || 24);
-            $("lap-log").innerHTML = "";
-            setCapacity(sim.capacity_before);
-            $("sim-lap").textContent = sim.decision_lap + " / " + sim.totalLaps;
+            self.draw = function (cars, ours, oursLevel, pulse) {
+                var d = self.dpr;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(cache, 0, 0);
+                cars.forEach(function (car) {
+                    if (car.code === ours) return;
+                    drawCar(car, 5.5 * d, null);
+                });
+                var me = cars.filter(function (c) { return c.code === ours; })[0];
+                if (me) drawCar(me, 8 * d, { level: oursLevel, pulse: pulse });
+            };
+            function drawCar(car, r, halo) {
+                var d = self.dpr, pos = self.map(pointAt(car.frac));
+                // trail
+                for (var k = 1; k <= 7; k++) {
+                    var a = self.map(pointAt(car.frac - (k - 1) * 0.0022)), b = self.map(pointAt(car.frac - k * 0.0022));
+                    ctx.strokeStyle = car.color; ctx.globalAlpha = 0.42 * (1 - k / 8);
+                    ctx.lineWidth = r * 0.9; ctx.lineCap = "round";
+                    ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+                }
+                ctx.globalAlpha = 1;
+                if (halo) {
+                    var rad = (10 + 9 * halo.level) * d * (1 + 0.12 * halo.pulse);
+                    var g = ctx.createRadialGradient(pos[0], pos[1], r, pos[0], pos[1], rad);
+                    g.addColorStop(0, halo.level ? "rgba(34, 211, 238, 0.55)" : "rgba(156, 163, 175, 0.35)");
+                    g.addColorStop(1, "rgba(34, 211, 238, 0)");
+                    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(pos[0], pos[1], rad, 0, Math.PI * 2); ctx.fill();
+                }
+                ctx.fillStyle = car.color; ctx.strokeStyle = halo ? "#ffffff" : "rgba(0, 0, 0, 0.65)";
+                ctx.lineWidth = (halo ? 2.5 : 1.5) * d;
+                ctx.beginPath(); ctx.arc(pos[0], pos[1], r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+                if (halo) {
+                    var label = car.code, fs = 12 * d;
+                    ctx.font = "800 " + fs + "px 'Courier New', monospace";
+                    var tw = ctx.measureText(label).width, px = pos[0] + 14 * d, py = pos[1] - 24 * d;
+                    ctx.fillStyle = "rgba(10, 13, 18, 0.85)";
+                    roundRect(ctx, px - 7 * d, py - fs * 0.85, tw + 14 * d, fs * 1.5, 5 * d); ctx.fill();
+                    ctx.fillStyle = "#67e8f9"; ctx.fillText(label, px, py + fs * 0.25);
+                }
+            }
+            function roundRect(c, x, y, w, h, r) {
+                c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r);
+                c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath();
+            }
         }
 
+        function renderTower(cars, ours) {
+            var order = cars.slice().sort(function (a, b) { return b.progress - a.progress; });
+            var top = order.slice(0, 10), mine = order.findIndex(function (c) { return c.code === ours; });
+            if (mine >= 10) top[9] = order[mine];
+            var html = '<li class="tower-head">Running order</li>';
+            top.forEach(function (c) {
+                var pos = order.indexOf(c) + 1;
+                html += '<li class="' + (c.code === ours ? "ours" : "") + '"><span class="pos">' + pos +
+                    '</span><span class="bar" style="background:' + c.color + '"></span><span class="code">' + c.code + '</span></li>';
+            });
+            $("tower").innerHTML = html;
+        }
+
+        function setVestHud(setting, capacity) {
+            var level = VEST_LEVEL[setting] || 0;
+            $("race").style.setProperty("--vest", VEST_COLOR[setting] || "#22d3ee");
+            document.querySelectorAll("#pips .pip").forEach(function (p, i) { p.classList.toggle("on", i < level); });
+            $("hud-setting").textContent = setting;
+            $("hud-cap-val").textContent = capacity + "%";
+            $("hud-cap").style.width = Math.max(0, Math.min(100, capacity)) + "%";
+        }
+
+        /** Field data for the animation; falls back to our car alone at a steady pace. */
+        function fieldFor(sim, meta) {
+            if (sim.field && sim.field.drivers && sim.field.drivers.length) return sim.field;
+            var laps = sim.laps.map(function (l, i) { return [l.lap, i * 90, 90]; });
+            return { duration_s: laps.length * 90, ours: meta.driver,
+                     our_lap_starts: laps.map(function (l) { return [l[0], l[1]]; }),
+                     drivers: [{ code: meta.driver, color: "#3671C6", laps: laps }] };
+        }
         // ---- 3D cooling vest bridge ----
         // Drives the teammate's page (F1 Cooling Vest 3D.html, served at /vest3d) by pressing its own
         // pump / voltage buttons. Any change there starts its ~40 s cinematic; we wait for its progress bar
@@ -1431,48 +1439,101 @@
         }
 
         function playLaps(sim, meta, done) {
-            $("sim").hidden = false;
-            setupSimView(sim, meta);
+            var race = $("race"), field = fieldFor(sim, meta), ours = field.ours;
+            var lapByNumber = {};
+            sim.laps.forEach(function (l) { lapByNumber[l.lap] = l; });
 
-            var finished = false, shown = -1, startTime = null, endTimer = null;
-            function finish() {
-                if (finished) return;
-                finished = true;
-                showUpTo(sim.laps.length - 1);
-                placeCar(0);
-                $("sim-progress").textContent = meta.finished ? "Race finished." : "Next decision at lap " + meta.lap + ".";
-                $("sim-skip").disabled = true;
-                endTimer = setTimeout(leave, END_PAUSE_MS);
+            $("race-event").textContent = "Lusail · " + (sim.race || meta.race || "");
+            $("race-total").textContent = "/ " + meta.total_laps;
+            var banner = $("race-banner");
+            banner.className = "race-banner";
+            banner.textContent = !sim.change_required ? "Vest kept on " + sim.setting_after
+                : sim.accepted ? "Vest " + sim.setting_before + " → " + sim.setting_after
+                : "Change rejected · vest stays " + sim.setting_after;
+            if (sim.change_required && !sim.accepted) banner.classList.add("rejected");
+            setVestHud(sim.setting_after, sim.capacity_before);
+            race.hidden = false;
+
+            var finished = false, startTime = null, lastTower = 0, endTimer = null, view = null, shownLap = null;
+            var speed = field.duration_s / (sim.laps.length * LAP_SECONDS);   // race seconds per screen second
+            var bannerTimer = setTimeout(function () { banner.classList.add("fade"); }, 3500);
+
+            function ourLapAt(t) {
+                var n = field.our_lap_starts[0][0];
+                field.our_lap_starts.forEach(function (s) { if (t >= s[1]) n = s[0]; });
+                return n;
             }
-            function leave() {
-                clearTimeout(endTimer);
-                $("sim").hidden = true;
-                $("card").hidden = false;
-                done();
+            function showLap(n) {
+                if (n === shownLap) return;
+                shownLap = n;
+                var l = lapByNumber[n] || sim.laps[sim.laps.length - 1];
+                $("race-lap").textContent = n;
+                $("hud-hi").textContent = l.heat_index_c + "°C";
+                $("hud-air").textContent = l.air_temp_c + "°C";
+                setVestHud(sim.setting_after, l.capacity_pct);
+                var flag = $("race-flag");
+                if (l.track_status !== "GREEN" && flag.hidden) {
+                    toast("flag", "Lap " + n + " · " + (FLAG_TEXT[l.track_status] || l.track_status),
+                          "Vest stays on " + sim.setting_after + " · heat index " + l.heat_index_c + "°C");
+                }
+                flag.hidden = l.track_status === "GREEN";
+                flag.textContent = FLAG_TEXT[l.track_status] || l.track_status;
             }
-            function showUpTo(i) {
-                while (shown < i) { shown++; showSimLap(sim, shown); }
+            function carsAt(t) {
+                var list = [];
+                field.drivers.forEach(function (d) {
+                    var p = carProgress(d, t);
+                    if (p !== null) list.push({ code: d.code, color: d.color, progress: p, frac: p % 1 });
+                });
+                return list;
+            }
+            function render(t, now) {
+                var cars = carsAt(t);
+                if (view) view.draw(cars, ours, VEST_LEVEL[sim.setting_after] || 0, Math.sin(now / 260));
+                if (now - lastTower > 300) { renderTower(cars, ours); lastTower = now; }
+                showLap(ourLapAt(t));
             }
             function frame(now) {
                 if (finished) return;
                 if (startTime === null) startTime = now;
-                var t = (now - startTime) / LAP_MS;
-                if (t >= sim.laps.length) return finish();
-                showUpTo(Math.floor(t));
-                placeCar(t);
+                var t = (now - startTime) / 1000 * speed;
+                if (t >= field.duration_s) return finish();
+                render(t, now);
                 requestAnimationFrame(frame);
             }
+            function finish() {
+                if (finished) return;
+                finished = true;
+                render(field.duration_s - 0.01, performance.now());
+                showLap(sim.laps[sim.laps.length - 1].lap);
+                clearTimeout(bannerTimer);
+                banner.className = "race-banner";
+                banner.textContent = meta.finished ? "Chequered flag" : "Next decision · lap " + meta.lap;
+                $("race-skip").disabled = true;
+                endTimer = setTimeout(leave, END_PAUSE_MS);
+            }
+            function leave() {
+                clearTimeout(endTimer);
+                window.removeEventListener("resize", onResize);
+                race.hidden = true;
+                $("card").hidden = false;
+                done();
+            }
+            function onResize() { if (view) view.resize(); }
 
-            var skip = $("sim-skip");
+            var skip = $("race-skip");
             skip.disabled = false;
             skip.onclick = function () { if (finished) leave(); else finish(); };
 
-            loadTrack().then(function () {
-                placeCar(0);
-                if (reduceMotion) { finish(); } else { requestAnimationFrame(frame); }
+            loadTrack().then(function (t) {
+                if (t) {
+                    view = new RaceCanvas($("race-canvas"));
+                    view.resize();
+                    window.addEventListener("resize", onResize);
+                }
+                if (reduceMotion) finish(); else requestAnimationFrame(frame);
             });
         }
-
         CoolPitPopup.playSimulation = playSimulation;
 
         // ---- Live mode: served by demo/demo_server.py (http://localhost:5000) ----
@@ -1637,20 +1698,16 @@
             };
             tryPlay();
         } else if (previewState === "sim") {
-            // preview of the simulation view with example data (track map needs the server: /api/track)
-            var exampleSim = {
-                decision_lap: 15, recommended: "MEDIUM", change_required: true, accepted: true,
-                setting_before: "LOW", setting_after: "MEDIUM", capacity_before: 67.5, capacity_use_per_lap: 1.0,
-                laps: [16, 17, 18, 19, 20].map(function (n, i) {
-                    return { lap: n, heat_index_c: 41.1 - i * 0.2, air_temp_c: 31.9, track_temp_c: 37.2,
-                             humidity_pct: 74, track_status: "GREEN", lap_time_s: 88.1, capacity_pct: 66.5 - i };
-                })
-            };
-            var loop = function () {
-                CoolPitPopup.playSimulation(exampleSim, { total_laps: 57, lap: 20, race: "2023 Qatar Grand Prix",
-                    driver: "VER", finished: false }, function () { setTimeout(loop, 500); });
-            };
-            loop();
+            // preview of the race view with real data for the laps after lap 15 (needs the server)
+            fetch("/api/preview-sim?lap=15").then(function (r) { return r.json(); }).then(function (exampleSim) {
+                var loop = function () {
+                    CoolPitPopup.playSimulation(exampleSim, { total_laps: 57, lap: 20, race: exampleSim.race,
+                        driver: "VER", finished: false }, function () { setTimeout(loop, 500); });
+                };
+                loop();
+            }).catch(function () {
+                CoolPitPopup.footerMessage("The race preview needs the demo server: http://localhost:5000/?state=sim");
+            });
         } else if (previewState === "loading") {
             CoolPitPopup.render(PREVIEW.critical.ui, PREVIEW.critical.meta);
             CoolPitPopup.showLoading("Analysing lap 45…");
