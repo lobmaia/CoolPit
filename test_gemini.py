@@ -1,52 +1,52 @@
 """
-Gemini API 키 작동 확인용 스크립트
+Checks that your Gemini API key works.
 
-사용법:
+Usage:
     python test_gemini.py
-환경변수 GEMINI_API_KEY 에 저장된 키를 읽어서 짧은 질문을 한 번 보냅니다.
+Reads the key from the GEMINI_API_KEY environment variable and sends one short question.
 """
 import os
 import sys
 
-MODEL = "gemini-3.8-flash"  # gemini-2.5-flash는 신규 사용자에게 막혀 있음
+MODEL = "gemini-3.8-flash"  # gemini-2.5-flash is no longer available to new users
 
-# 1. 키가 환경변수에 있는지 확인 (키 전체는 출력하지 않음)
+# 1. Check that the key is in the environment (never print the full key)
 key = os.environ.get("GEMINI_API_KEY")
 if not key:
-    print("❌ GEMINI_API_KEY 환경변수를 찾을 수 없습니다.")
-    print("   setx 로 저장했다면 VSCode를 완전히 껐다가 다시 켜세요.")
+    print("❌ GEMINI_API_KEY environment variable not found.")
+    print("   If you saved it with setx, fully close and reopen VS Code.")
     sys.exit(1)
-print(f"🔑 키 확인: {key[:6]}...{key[-4:]} (길이 {len(key)})")
+print(f"🔑 Key found: {key[:6]}...{key[-4:]} (length {len(key)})")
 
-# 2. 라이브러리 확인
+# 2. Check the library
 try:
     from google import genai
 except ImportError:
-    print("❌ google-genai 라이브러리가 없습니다. 먼저 설치하세요:")
+    print("❌ google-genai is not installed. Install it first:")
     print("   python -m pip install google-genai")
     sys.exit(1)
 
-# 3. 실제 호출
+# 3. Make a real call
 client = genai.Client(api_key=key)
 try:
     response = client.models.generate_content(
         model=MODEL,
-        contents="F1에서 언더컷이 뭔지 한 문장으로 설명해줘",
+        contents="Explain the undercut in Formula 1 in one sentence.",
     )
-    print(f"✅ 성공! ({MODEL}) 응답:")
+    print(f"✅ Success! ({MODEL}) Response:")
     print(response.text)
 except Exception as e:
     msg = str(e)
-    print(f"❌ 호출 실패: {type(e).__name__}")
+    print(f"❌ Call failed: {type(e).__name__}")
     print(f"   {msg[:300]}")
     if "API key not valid" in msg or "PERMISSION_DENIED" in msg or "403" in msg:
-        print("👉 키가 잘못됐습니다. AI Studio에서 키를 다시 복사해 저장하세요 (앞뒤 공백 주의).")
+        print("👉 The key is invalid. Copy it again from AI Studio and save it (watch for extra spaces).")
     elif "429" in msg or "RESOURCE_EXHAUSTED" in msg:
-        print("👉 키는 정상이지만 무료 한도를 넘었습니다. 잠시 뒤 다시 시도하세요.")
+        print("👉 The key works, but the free-tier limit was reached. Try again in a moment.")
     elif "404" in msg or "NOT_FOUND" in msg:
-        print(f"👉 키는 정상이지만 모델 이름({MODEL})이 없습니다. 사용 가능한 flash 모델:")
+        print(f"👉 The key works, but model '{MODEL}' is not available. Available flash models:")
         for m in client.models.list():
             if "flash" in m.name:
                 print("   -", m.name)
-        print("   파일 위쪽 MODEL 값을 위 이름 중 하나로 바꾸세요.")
+        print("   Change MODEL at the top of this file to one of the names above.")
     sys.exit(1)

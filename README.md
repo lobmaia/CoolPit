@@ -30,7 +30,7 @@ input JSON ──▶ race context for the lap (weather, heat index + trend, trac
 ```powershell
 pip install -r requirements.txt
 setx GEMINI_API_KEY "your_key"     # get a free key at https://aistudio.google.com, then restart VS Code
-python test_gemini.py              # should print "✅ 성공!" with an answer
+python test_gemini.py              # should print "✅ Success!" with an answer
 ```
 
 The first run downloads the 2023 Qatar GP data into `f1_cache/` (about 30 seconds). Later runs read the cache.
