@@ -1,0 +1,42 @@
+{
+  "decision": {
+    "lap": 45,
+    "previous_setting": "LOW",
+    "new_setting": "MEDIUM",
+    "confidence": 0.9,
+    "reason": "Ample capacity remaining and rising heat index justify stepping up to MEDIUM cooling.",
+    "monitor": [
+      "Remaining capacity vs final laps",
+      "Heat index rate of increase",
+      "Pace consistency under green flag"
+    ],
+    "key_factors": [
+      "70% cooling capacity for 12 laps remaining",
+      "Heat index at 39.8 C with rising trend of +0.108 C/lap",
+      "High humidity at 76.0% under green flag racing"
+    ],
+    "change_required": true,
+    "zone": "CRITICAL_HEAT"
+  },
+  "ui": {
+    "zone": "CRITICAL_HEAT",
+    "title": "CRITICAL HEAT",
+    "status_text": "Above threshold",
+    "track_temp_c": 35.6,
+    "air_temp_c": 31.1,
+    "humidity_pct": 76.0,
+    "heat_index_c": 39.8,
+    "switch_to": "MEDIUM",
+    "from": "LOW",
+    "change_required": true,
+    "reason": "Ample capacity remaining and rising heat index justify stepping up to MEDIUM cooling.",
+    "monitor": [
+      "Remaining capacity vs final laps",
+      "Heat index rate of increase",
+      "Pace consistency under green flag"
+    ],
+    "accept_label": "Change to MEDIUM",
+    "reject_label": "Stay with LOW"
+  },
+  "source": "gemini:gemini-3.8-flash"
+}

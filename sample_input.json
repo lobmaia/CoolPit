@@ -1,0 +1,11 @@
+{
+  "driver": "VER",
+  "year": 2023,
+  "event": "Qatar Grand Prix",
+  "current_lap": 45,
+  "vest_state": {
+    "setting": "LOW",
+    "capacity_remaining_pct": 70,
+    "laps_since_change": 6
+  }
+}

@@ -1,0 +1,4 @@
+fastf1>=3.8
+pandas>=2.0
+pydantic>=2.0
+google-genai>=2.25
