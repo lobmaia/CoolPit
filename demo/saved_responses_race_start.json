@@ -1,0 +1,636 @@
+{
+  "meta": {
+    "race": "2023 Qatar Grand Prix",
+    "driver": "VER",
+    "start_lap": 1,
+    "step": 5,
+    "path": "every recommended change accepted",
+    "model": "gemini-3.8-flash",
+    "recorded_at": "2026-09-27T09:50:50",
+    "complete": true,
+    "start_input": {
+      "driver": "VER",
+      "year": 2023,
+      "event": "Qatar Grand Prix",
+      "current_lap": 1,
+      "vest_state": {
+        "setting": "OFF",
+        "capacity_remaining_pct": 100,
+        "laps_since_change": 0
+      }
+    }
+  },
+  "responses": [
+    {
+      "lap": 1,
+      "vest_state": {
+        "setting": "OFF",
+        "capacity_remaining_pct": 100,
+        "laps_since_change": 0
+      },
+      "output": {
+        "decision": {
+          "lap": 1,
+          "previous_setting": "OFF",
+          "new_setting": "OFF",
+          "confidence": 0.95,
+          "reason": "Safety car conditions and 56 laps remaining warrant keeping cooling off to conserve capacity.",
+          "monitor": [
+            "Safety car restart timing",
+            "Heat index trend",
+            "Vest capacity remaining"
+          ],
+          "key_factors": [
+            "Safety car neutralises early race workload",
+            "56 laps remaining out of 57",
+            "Heat index currently 40.3 C with 73.0% humidity",
+            "Cooling capacity at 100%"
+          ],
+          "change_required": false,
+          "zone": "CRITICAL_HEAT"
+        },
+        "ui": {
+          "zone": "CRITICAL_HEAT",
+          "title": "CRITICAL HEAT",
+          "status_text": "Above threshold",
+          "track_temp_c": 37.2,
+          "air_temp_c": 31.6,
+          "humidity_pct": 73.0,
+          "heat_index_c": 40.3,
+          "switch_to": "OFF",
+          "from": "OFF",
+          "change_required": false,
+          "reason": "Safety car conditions and 56 laps remaining warrant keeping cooling off to conserve capacity.",
+          "monitor": [
+            "Safety car restart timing",
+            "Heat index trend",
+            "Vest capacity remaining"
+          ],
+          "accept_label": null,
+          "reject_label": null
+        },
+        "source": "gemini:gemini-3.8-flash"
+      }
+    },
+    {
+      "lap": 6,
+      "vest_state": {
+        "setting": "OFF",
+        "capacity_remaining_pct": 100.0,
+        "laps_since_change": 5
+      },
+      "output": {
+        "decision": {
+          "lap": 6,
+          "previous_setting": "OFF",
+          "new_setting": "LOW",
+          "confidence": 0.88,
+          "reason": "Engage LOW cooling as heat index exceeds 40.7C with rising trend under green flag.",
+          "monitor": [
+            "Heat index trend progression",
+            "Vest capacity consumption rate",
+            "Track status changes"
+          ],
+          "key_factors": [
+            "Heat index at 40.7 C with +0.213 C/lap trend",
+            "Humidity high at 75.0 percent",
+            "100.0 percent cooling capacity with 51 laps remaining",
+            "Track status is GREEN with 5 laps since last change"
+          ],
+          "change_required": true,
+          "zone": "CRITICAL_HEAT"
+        },
+        "ui": {
+          "zone": "CRITICAL_HEAT",
+          "title": "CRITICAL HEAT",
+          "status_text": "Above threshold",
+          "track_temp_c": 37.3,
+          "air_temp_c": 31.5,
+          "humidity_pct": 75.0,
+          "heat_index_c": 40.7,
+          "switch_to": "LOW",
+          "from": "OFF",
+          "change_required": true,
+          "reason": "Engage LOW cooling as heat index exceeds 40.7C with rising trend under green flag.",
+          "monitor": [
+            "Heat index trend progression",
+            "Vest capacity consumption rate",
+            "Track status changes"
+          ],
+          "accept_label": "Change to LOW",
+          "reject_label": "Stay with OFF"
+        },
+        "source": "gemini:gemini-3.8-flash"
+      }
+    },
+    {
+      "lap": 11,
+      "vest_state": {
+        "setting": "LOW",
+        "capacity_remaining_pct": 97.5,
+        "laps_since_change": 5
+      },
+      "output": {
+        "decision": {
+          "lap": 11,
+          "previous_setting": "LOW",
+          "new_setting": "LOW",
+          "confidence": 0.82,
+          "reason": "Heat index of 40.4°C is extreme, but negative trend justifies maintaining LOW setting.",
+          "monitor": [
+            "Heat index and humidity trends",
+            "Vest capacity consumption rate",
+            "Track status and pace delta"
+          ],
+          "key_factors": [
+            "Heat index at 40.4°C with 75.0% humidity",
+            "Heat index trend at -0.063°C per lap",
+            "97.5% cooling capacity across 46 laps remaining",
+            "Setting maintained for 5 laps"
+          ],
+          "change_required": false,
+          "zone": "CRITICAL_HEAT"
+        },
+        "ui": {
+          "zone": "CRITICAL_HEAT",
+          "title": "CRITICAL HEAT",
+          "status_text": "Above threshold",
+          "track_temp_c": 36.7,
+          "air_temp_c": 31.4,
+          "humidity_pct": 75.0,
+          "heat_index_c": 40.4,
+          "switch_to": "LOW",
+          "from": "LOW",
+          "change_required": false,
+          "reason": "Heat index of 40.4°C is extreme, but negative trend justifies maintaining LOW setting.",
+          "monitor": [
+            "Heat index and humidity trends",
+            "Vest capacity consumption rate",
+            "Track status and pace delta"
+          ],
+          "accept_label": null,
+          "reject_label": null
+        },
+        "source": "gemini:gemini-3.8-flash"
+      }
+    },
+    {
+      "lap": 16,
+      "vest_state": {
+        "setting": "LOW",
+        "capacity_remaining_pct": 95.0,
+        "laps_since_change": 10
+      },
+      "output": {
+        "decision": {
+          "lap": 16,
+          "previous_setting": "LOW",
+          "new_setting": "MEDIUM",
+          "confidence": 0.88,
+          "reason": "Increase cooling to MEDIUM given severe 41.1C heat index and ample battery capacity.",
+          "monitor": [
+            "Vest capacity depletion rate",
+            "Heat index trend over stint",
+            "Upcoming pit stop timing"
+          ],
+          "key_factors": [
+            "Heat index at 41.1C with 76.0% humidity",
+            "Heat index trend rising +0.032C per lap",
+            "95.0% cooling capacity remaining for 41 laps",
+            "10 laps maintained on LOW setting"
+          ],
+          "change_required": true,
+          "zone": "CRITICAL_HEAT"
+        },
+        "ui": {
+          "zone": "CRITICAL_HEAT",
+          "title": "CRITICAL HEAT",
+          "status_text": "Above threshold",
+          "track_temp_c": 36.8,
+          "air_temp_c": 31.5,
+          "humidity_pct": 76.0,
+          "heat_index_c": 41.1,
+          "switch_to": "MEDIUM",
+          "from": "LOW",
+          "change_required": true,
+          "reason": "Increase cooling to MEDIUM given severe 41.1C heat index and ample battery capacity.",
+          "monitor": [
+            "Vest capacity depletion rate",
+            "Heat index trend over stint",
+            "Upcoming pit stop timing"
+          ],
+          "accept_label": "Change to MEDIUM",
+          "reject_label": "Stay with LOW"
+        },
+        "source": "gemini:gemini-3.8-flash"
+      }
+    },
+    {
+      "lap": 21,
+      "vest_state": {
+        "setting": "MEDIUM",
+        "capacity_remaining_pct": 90.0,
+        "laps_since_change": 5
+      },
+      "output": {
+        "decision": {
+          "lap": 21,
+          "previous_setting": "MEDIUM",
+          "new_setting": "MEDIUM",
+          "confidence": 0.88,
+          "reason": "Maintain MEDIUM cooling with ample capacity remaining under severe heat index conditions.",
+          "monitor": [
+            "Heat index trend",
+            "Vest capacity consumption rate",
+            "Upcoming pit stop timing"
+          ],
+          "key_factors": [
+            "Heat index high at 40.4 C",
+            "Capacity remaining at 90.0 percent",
+            "36 laps remaining under green flag",
+            "Heat index trend falling -0.131 C/lap"
+          ],
+          "change_required": false,
+          "zone": "CRITICAL_HEAT"
+        },
+        "ui": {
+          "zone": "CRITICAL_HEAT",
+          "title": "CRITICAL HEAT",
+          "status_text": "Above threshold",
+          "track_temp_c": 36.8,
+          "air_temp_c": 31.3,
+          "humidity_pct": 76.0,
+          "heat_index_c": 40.4,
+          "switch_to": "MEDIUM",
+          "from": "MEDIUM",
+          "change_required": false,
+          "reason": "Maintain MEDIUM cooling with ample capacity remaining under severe heat index conditions.",
+          "monitor": [
+            "Heat index trend",
+            "Vest capacity consumption rate",
+            "Upcoming pit stop timing"
+          ],
+          "accept_label": null,
+          "reject_label": null
+        },
+        "source": "gemini:gemini-3.8-flash"
+      }
+    },
+    {
+      "lap": 26,
+      "vest_state": {
+        "setting": "MEDIUM",
+        "capacity_remaining_pct": 85.0,
+        "laps_since_change": 10
+      },
+      "output": {
+        "decision": {
+          "lap": 26,
+          "previous_setting": "MEDIUM",
+          "new_setting": "MEDIUM",
+          "confidence": 0.9,
+          "reason": "Stable pace and high heat index warrant maintaining medium cooling with ample capacity.",
+          "monitor": [
+            "Heat index trend",
+            "Vest capacity consumption rate",
+            "Track status changes"
+          ],
+          "key_factors": [
+            "Heat index at 39.8C with 75.0% humidity",
+            "85.0% capacity remaining for 31 laps",
+            "Setting stable for 10 laps under GREEN track status"
+          ],
+          "change_required": false,
+          "zone": "CRITICAL_HEAT"
+        },
+        "ui": {
+          "zone": "CRITICAL_HEAT",
+          "title": "CRITICAL HEAT",
+          "status_text": "Above threshold",
+          "track_temp_c": 36.7,
+          "air_temp_c": 31.2,
+          "humidity_pct": 75.0,
+          "heat_index_c": 39.8,
+          "switch_to": "MEDIUM",
+          "from": "MEDIUM",
+          "change_required": false,
+          "reason": "Stable pace and high heat index warrant maintaining medium cooling with ample capacity.",
+          "monitor": [
+            "Heat index trend",
+            "Vest capacity consumption rate",
+            "Track status changes"
+          ],
+          "accept_label": null,
+          "reject_label": null
+        },
+        "source": "gemini:gemini-3.8-flash"
+      }
+    },
+    {
+      "lap": 31,
+      "vest_state": {
+        "setting": "MEDIUM",
+        "capacity_remaining_pct": 80.0,
+        "laps_since_change": 15
+      },
+      "output": {
+        "decision": {
+          "lap": 31,
+          "previous_setting": "MEDIUM",
+          "new_setting": "MEDIUM",
+          "confidence": 0.88,
+          "reason": "Maintain MEDIUM cooling with ample 80% capacity remaining and falling heat index.",
+          "monitor": [
+            "Heat index trend decline rate",
+            "Cooling capacity consumption per lap",
+            "Upcoming pit stop timing"
+          ],
+          "key_factors": [
+            "Remaining capacity at 80.0% for 26 laps",
+            "Heat index at 38.7 C with -0.275 trend",
+            "Stable at MEDIUM for 15 laps",
+            "Green flag racing in 71.0% humidity"
+          ],
+          "change_required": false,
+          "zone": "CRITICAL_HEAT"
+        },
+        "ui": {
+          "zone": "CRITICAL_HEAT",
+          "title": "CRITICAL HEAT",
+          "status_text": "Above threshold",
+          "track_temp_c": 36.9,
+          "air_temp_c": 31.3,
+          "humidity_pct": 71.0,
+          "heat_index_c": 38.7,
+          "switch_to": "MEDIUM",
+          "from": "MEDIUM",
+          "change_required": false,
+          "reason": "Maintain MEDIUM cooling with ample 80% capacity remaining and falling heat index.",
+          "monitor": [
+            "Heat index trend decline rate",
+            "Cooling capacity consumption per lap",
+            "Upcoming pit stop timing"
+          ],
+          "accept_label": null,
+          "reject_label": null
+        },
+        "source": "gemini:gemini-3.8-flash"
+      }
+    },
+    {
+      "lap": 36,
+      "vest_state": {
+        "setting": "MEDIUM",
+        "capacity_remaining_pct": 75.0,
+        "laps_since_change": 20
+      },
+      "output": {
+        "decision": {
+          "lap": 36,
+          "previous_setting": "MEDIUM",
+          "new_setting": "HIGH",
+          "confidence": 0.85,
+          "reason": "Rising heat index and ample remaining capacity support increasing cooling for final stint.",
+          "monitor": [
+            "Vest capacity consumption rate",
+            "Heat index trend progression",
+            "Track status changes"
+          ],
+          "key_factors": [
+            "Heat index 39.7C rising +0.178C/lap",
+            "75.0% capacity left over 21 laps",
+            "Humidity high at 74.0%",
+            "20 laps on MEDIUM setting"
+          ],
+          "change_required": true,
+          "zone": "CRITICAL_HEAT"
+        },
+        "ui": {
+          "zone": "CRITICAL_HEAT",
+          "title": "CRITICAL HEAT",
+          "status_text": "Above threshold",
+          "track_temp_c": 36.3,
+          "air_temp_c": 31.3,
+          "humidity_pct": 74.0,
+          "heat_index_c": 39.7,
+          "switch_to": "HIGH",
+          "from": "MEDIUM",
+          "change_required": true,
+          "reason": "Rising heat index and ample remaining capacity support increasing cooling for final stint.",
+          "monitor": [
+            "Vest capacity consumption rate",
+            "Heat index trend progression",
+            "Track status changes"
+          ],
+          "accept_label": "Change to HIGH",
+          "reject_label": "Stay with MEDIUM"
+        },
+        "source": "gemini:gemini-3.8-flash"
+      }
+    },
+    {
+      "lap": 41,
+      "vest_state": {
+        "setting": "HIGH",
+        "capacity_remaining_pct": 65.0,
+        "laps_since_change": 5
+      },
+      "output": {
+        "decision": {
+          "lap": 41,
+          "previous_setting": "HIGH",
+          "new_setting": "MEDIUM",
+          "confidence": 0.85,
+          "reason": "Yellow track status reduces driver workload, step down to conserve cooling capacity.",
+          "monitor": [
+            "Track status return to green",
+            "Heat index trend changes",
+            "Remaining vest capacity level"
+          ],
+          "key_factors": [
+            "Track status is YELLOW on lap 41",
+            "Heat index is 39.4 C with trend -0.094",
+            "Vest capacity is 65.0% with 16 laps remaining",
+            "5 laps since last vest setting change"
+          ],
+          "change_required": true,
+          "zone": "CRITICAL_HEAT"
+        },
+        "ui": {
+          "zone": "CRITICAL_HEAT",
+          "title": "CRITICAL HEAT",
+          "status_text": "Above threshold",
+          "track_temp_c": 36.1,
+          "air_temp_c": 31.2,
+          "humidity_pct": 74.0,
+          "heat_index_c": 39.4,
+          "switch_to": "MEDIUM",
+          "from": "HIGH",
+          "change_required": true,
+          "reason": "Yellow track status reduces driver workload, step down to conserve cooling capacity.",
+          "monitor": [
+            "Track status return to green",
+            "Heat index trend changes",
+            "Remaining vest capacity level"
+          ],
+          "accept_label": "Change to MEDIUM",
+          "reject_label": "Stay with HIGH"
+        },
+        "source": "gemini:gemini-3.7-flash"
+      }
+    },
+    {
+      "lap": 46,
+      "vest_state": {
+        "setting": "MEDIUM",
+        "capacity_remaining_pct": 60.0,
+        "laps_since_change": 5
+      },
+      "output": {
+        "decision": {
+          "lap": 46,
+          "previous_setting": "MEDIUM",
+          "new_setting": "HIGH",
+          "confidence": 0.88,
+          "reason": "Ample capacity remaining allows stepping up to HIGH amid rising heat index.",
+          "monitor": [
+            "Vest capacity consumption rate",
+            "Heat index trend progression",
+            "Track status changes"
+          ],
+          "key_factors": [
+            "60.0% cooling capacity remaining for 11 laps",
+            "Heat index at 39.8 C with rising trend of +0.111 C per lap",
+            "High humidity at 76.0% under green flag conditions",
+            "Current MEDIUM setting maintained for 5 laps"
+          ],
+          "change_required": true,
+          "zone": "CRITICAL_HEAT"
+        },
+        "ui": {
+          "zone": "CRITICAL_HEAT",
+          "title": "CRITICAL HEAT",
+          "status_text": "Above threshold",
+          "track_temp_c": 35.8,
+          "air_temp_c": 31.1,
+          "humidity_pct": 76.0,
+          "heat_index_c": 39.8,
+          "switch_to": "HIGH",
+          "from": "MEDIUM",
+          "change_required": true,
+          "reason": "Ample capacity remaining allows stepping up to HIGH amid rising heat index.",
+          "monitor": [
+            "Vest capacity consumption rate",
+            "Heat index trend progression",
+            "Track status changes"
+          ],
+          "accept_label": "Change to HIGH",
+          "reject_label": "Stay with MEDIUM"
+        },
+        "source": "gemini:gemini-3.7-flash"
+      }
+    },
+    {
+      "lap": 51,
+      "vest_state": {
+        "setting": "HIGH",
+        "capacity_remaining_pct": 50.0,
+        "laps_since_change": 5
+      },
+      "output": {
+        "decision": {
+          "lap": 51,
+          "previous_setting": "HIGH",
+          "new_setting": "HIGH",
+          "confidence": 0.95,
+          "reason": "Ample 50% capacity remaining for the final 6 laps under extreme heat conditions.",
+          "monitor": [
+            "Vest capacity burn rate",
+            "Heat index downward trend",
+            "Track status after pit exit"
+          ],
+          "key_factors": [
+            "6 laps remaining with 50.0% capacity available",
+            "Heat index remains high at 38.8°C",
+            "Humidity is elevated at 74.0%",
+            "Current HIGH setting stable for 5 laps"
+          ],
+          "change_required": false,
+          "zone": "CRITICAL_HEAT"
+        },
+        "ui": {
+          "zone": "CRITICAL_HEAT",
+          "title": "CRITICAL HEAT",
+          "status_text": "Above threshold",
+          "track_temp_c": 35.9,
+          "air_temp_c": 31.0,
+          "humidity_pct": 74.0,
+          "heat_index_c": 38.8,
+          "switch_to": "HIGH",
+          "from": "HIGH",
+          "change_required": false,
+          "reason": "Ample 50% capacity remaining for the final 6 laps under extreme heat conditions.",
+          "monitor": [
+            "Vest capacity burn rate",
+            "Heat index downward trend",
+            "Track status after pit exit"
+          ],
+          "accept_label": null,
+          "reject_label": null
+        },
+        "source": "gemini:gemini-3.7-flash"
+      }
+    },
+    {
+      "lap": 56,
+      "vest_state": {
+        "setting": "HIGH",
+        "capacity_remaining_pct": 40.0,
+        "laps_since_change": 10
+      },
+      "output": {
+        "decision": {
+          "lap": 56,
+          "previous_setting": "HIGH",
+          "new_setting": "HIGH",
+          "confidence": 0.98,
+          "reason": "Maintain HIGH cooling for the final lap with 40% capacity remaining.",
+          "monitor": [
+            "Final lap track status",
+            "Pace through sector 3",
+            "Cooling capacity consumption"
+          ],
+          "key_factors": [
+            "Only 1 lap remaining",
+            "40.0% vest capacity remaining",
+            "High heat index of 38.6°C",
+            "Humidity at 74.0%"
+          ],
+          "change_required": false,
+          "zone": "CRITICAL_HEAT"
+        },
+        "ui": {
+          "zone": "CRITICAL_HEAT",
+          "title": "CRITICAL HEAT",
+          "status_text": "Above threshold",
+          "track_temp_c": 35.4,
+          "air_temp_c": 30.9,
+          "humidity_pct": 74.0,
+          "heat_index_c": 38.6,
+          "switch_to": "HIGH",
+          "from": "HIGH",
+          "change_required": false,
+          "reason": "Maintain HIGH cooling for the final lap with 40% capacity remaining.",
+          "monitor": [
+            "Final lap track status",
+            "Pace through sector 3",
+            "Cooling capacity consumption"
+          ],
+          "accept_label": null,
+          "reject_label": null
+        },
+        "source": "gemini:gemini-3.7-flash"
+      }
+    }
+  ]
+}
