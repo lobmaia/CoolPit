@@ -55,6 +55,21 @@ itself: each recommendation stays on screen for a few seconds, then it is approv
 | `http://localhost:5000/?auto=accept` | 1 · Pit wall accepts every suggestion (matches the `--replay` recording) |
 | `http://localhost:5000/?auto=accept&delay=8` | Same, with 8 s to talk over each pop-up (default 4 s) |
 | `http://localhost:5000/?auto=reject` | Pit wall rejects every change (leaves the recording, so it needs Gemini or `--offline`) |
+| `http://localhost:5000/?auto=timeout&timeout=8` | 2 · Pit wall never answers: after 8 s each pop-up keeps the current setting. Start the server with `--replay --offline` (the race leaves the recording after the first timeout) |
+
+**Full race from lap 1 (vest starts OFF).** `--race-start` starts at lap 1 with the vest OFF and 100% capacity
+(`demo/race_start.json`), then follows the recommendations from there.
+
+```powershell
+python demo\record_responses.py --race-start          # once: ~12 Gemini calls → demo\saved_responses_race_start.json
+python demo\demo_server.py --race-start --replay      # then open http://localhost:5000/?auto=accept
+python demo\demo_server.py --race-start --offline     # no recording / no key: rule-based decisions
+```
+
+**Decision deadline (safety default).** Every pop-up has a countdown ("No answer in 20s → vest stays on LOW"). If the
+pit wall does not answer in time, the vest **keeps its current setting**: the server applies a timeout like a reject,
+so the vest never changes without an approval. Set the time with `--decision-timeout SECONDS` (default 20, `0` = wait
+forever) or per page with `?timeout=N`. Timed-out laps show an orange toast and are listed in the race summary.
 
 If a page refresh leaves the race half-way, restart the server (or `POST /api/reset`) to start the test case from lap 10 again.
 Toasts also appear in manual mode when you click Accept / Reject / Continue, and when the simulation reaches a

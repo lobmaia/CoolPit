@@ -16,6 +16,8 @@
       Live mode: run  python demo/demo_server.py  and open http://localhost:5000
       Accepted changes first play the 3D cooling vest cinematic (teammate's page at /vest3d), then the lap simulation.
       Auto-play test cases: add ?auto=accept (or ?auto=reject), optionally &delay=<seconds per pop-up, default 4>.
+      Decision deadline: unanswered pop-ups keep the current vest setting after --decision-timeout seconds
+      (server flag, default 20; ?timeout=N overrides it, 0 = wait forever). ?auto=timeout never answers.
       The pit wall's choice is shown as a toast: CoolPitPopup.toast(kind, title, text).
       Preview without a server: open this file and add ?state=critical | green | cold | keep | loading | sim
       (?state=3d needs the server: http://localhost:5000/?state=3d)
@@ -715,6 +717,7 @@
         .toast[data-kind="approved"] { --toast-accent: #22c55e; }
         .toast[data-kind="rejected"] { --toast-accent: #fbbf24; }
         .toast[data-kind="flag"] { --toast-accent: #fbbf24; }
+        .toast[data-kind="timeout"] { --toast-accent: #f97316; }
 
         .toast-icon {
             font-size: 18px;
@@ -746,6 +749,10 @@
         @keyframes toastOut {
             to { opacity: 0; transform: translateY(-12px); }
         }
+
+        /* Decision deadline: countdown in the footer, red in the last seconds */
+        .footer-note.deadline { font-variant-numeric: tabular-nums; }
+        .footer-note.deadline.urgent { color: #dc2626; }
 
         /* Auto-play: ring on the button the pit wall is about to press */
         .btn.auto-pick {
@@ -1106,9 +1113,9 @@
             footer.appendChild(note);
         }
 
-        // ---- Toasts: kind = approved | rejected | flag | info ----
+        // ---- Toasts: kind = approved | rejected | flag | timeout | info ----
         var TOAST_MS = 6000;
-        var TOAST_ICON = { approved: "✓", rejected: "✕", flag: "⚑", info: "ℹ" };
+        var TOAST_ICON = { approved: "✓", rejected: "✕", flag: "⚑", timeout: "⏱", info: "ℹ" };
 
         function toast(kind, title, text, ms) {
             var el = document.createElement("div");
@@ -1449,6 +1456,7 @@
             banner.className = "race-banner";
             banner.textContent = !sim.change_required ? "Vest kept on " + sim.setting_after
                 : sim.accepted ? "Vest " + sim.setting_before + " → " + sim.setting_after
+                : sim.timed_out ? "No answer · vest stays " + sim.setting_after
                 : "Change rejected · vest stays " + sim.setting_after;
             if (sim.change_required && !sim.accepted) banner.classList.add("rejected");
             setVestHud(sim.setting_after, sim.capacity_before);
@@ -1557,7 +1565,43 @@
             CoolPitPopup.render(d.ui, {
                 lap: d.lap, totalLaps: d.total_laps, driver: d.driver, vest: d.vest_state, source: d.source
             });
-            if (AUTO) autoDecide(d.ui);
+            if (AUTO === "accept" || AUTO === "reject") autoDecide(d.ui);   // answers well before the deadline
+            else startDeadline(d.ui);
+        }
+
+        // ---- Decision deadline (safety default) ----
+        // If the pit wall does not answer within decisionTimeoutS, the vest keeps its current setting.
+        // The server applies a timeout exactly like a reject: the vest never changes without an approval.
+        var decisionTimeoutS = 20;   // from the server (--decision-timeout); ?timeout=N overrides it
+
+        function startDeadline(ui) {
+            if (!decisionTimeoutS) return;   // 0 = wait forever
+            var footer = $("footer");
+            var buttons = footer.querySelectorAll(".btn");
+            if (!buttons.length) return;
+            var keep = ui.change_required ? ui.from : ui.switch_to;
+            var note = document.createElement("span");
+            note.className = "footer-note deadline";
+            footer.insertBefore(note, footer.firstChild);
+            var lap = currentLap, left = decisionTimeoutS;
+            function answered() {
+                return Array.prototype.some.call(buttons, function (b) { return !b.isConnected || b.disabled; });
+            }
+            (function tick() {
+                if (answered()) return;
+                if (left > 0) {
+                    note.textContent = "No answer in " + left + "s → vest stays on " + keep;
+                    note.classList.toggle("urgent", left <= 5);
+                    left--;
+                    return setTimeout(tick, 1000);
+                }
+                buttons.forEach(function (b) { b.disabled = true; });
+                toast("timeout", "No answer from pit wall · lap " + lap,
+                      "Safety default: vest stays on " + keep +
+                      (ui.change_required ? " (CoolPit suggested " + ui.switch_to + ")" : ""));
+                sendResponse(false, "No answer in " + decisionTimeoutS + "s. Keeping " + keep + ". Moving to the next lap…",
+                             { timed_out: true });
+            })();
         }
 
         // ---- Auto-play (?auto=accept | reject): the pit wall answers every pop-up by itself ----
@@ -1587,7 +1631,14 @@
 
         function lapText() { return currentLap ? " · lap " + currentLap : ""; }
 
+        function useServerTimeout(st) {
+            var override = params.get("timeout");
+            if (override !== null && !isNaN(Number(override))) decisionTimeoutS = Math.max(0, Number(override));
+            else if (typeof st.decision_timeout_s === "number") decisionTimeoutS = st.decision_timeout_s;
+        }
+
         function loadLap(st) {
+            useServerTimeout(st);
             if (st.finished) return showFinished(st);
             CoolPitPopup.showLoading("Analysing lap " + st.lap + "…");
             $("subtitle").textContent = "LAP " + st.lap + " / " + st.total_laps + " · " + st.driver +
@@ -1595,9 +1646,11 @@
             api("POST", "/api/decide").then(renderDecision).catch(showError);
         }
 
-        function sendResponse(accepted, message) {
+        function sendResponse(accepted, message, extra) {
             CoolPitPopup.footerMessage(message);
-            api("POST", "/api/respond", { accepted: accepted }).then(function (st) {
+            var body = { accepted: accepted };
+            Object.keys(extra || {}).forEach(function (k) { body[k] = extra[k]; });
+            api("POST", "/api/respond", body).then(function (st) {
                 if (!("simulation" in st)) {
                     // server started before the simulation feature was added
                     CoolPitPopup.footerMessage("No simulation data: the demo server is running old code. " +
@@ -1642,14 +1695,25 @@
                 recommendation.appendChild(el);
             });
 
+            var timedOut = st.history.filter(function (h) { return h.timed_out; }).length;
+            if (timedOut) {
+                var note = document.createElement("div");
+                note.className = "rec-reason";
+                note.textContent = timedOut + " pop-up" + (timedOut > 1 ? "s" : "") +
+                    " not answered in time: vest kept its setting.";
+                recommendation.appendChild(note);
+            }
+
             renderMonitor(st.history.map(function (h) {
-                var what = !h.change_required ? "kept " + h.applied_setting
+                var what = h.timed_out ? "no answer, kept " + h.applied_setting +
+                        (h.change_required ? " (suggested " + h.recommended + ")" : "")
+                    : !h.change_required ? "kept " + h.applied_setting
                     : (h.accepted ? "accepted " : "rejected ") + h.previous + " → " + h.recommended;
                 return "Lap " + h.lap + ": " + what;
             }));
             if (AUTO) {
-                toast("info", "Race finished", accepted + " of " + changes.length + " changes approved · final setting " +
-                      st.vest_state.setting, 10000);
+                toast("info", "Race finished", accepted + " of " + changes.length + " changes approved" +
+                      (timedOut ? " · " + timedOut + " timed out" : "") + " · final setting " + st.vest_state.setting, 10000);
             }
             CoolPitPopup.footerMessage("Replay finished.", [{
                 label: "Restart race", primary: true,
@@ -1658,6 +1722,7 @@
         }
 
         function start(st) {
+            useServerTimeout(st);
             // After a page refresh, reuse the decision already made for this lap (saves Gemini quota)
             if (st.last && st.last.lap === st.lap && !st.finished) return renderDecision(st.last);
             loadLap(st);
@@ -1666,7 +1731,8 @@
         var params = new URLSearchParams(location.search);
         var previewState = params.get("state");
         var LIVE = /^https?:$/.test(location.protocol) && !previewState;
-        var AUTO = { accept: "accept", reject: "reject" }[params.get("auto")] || null;
+        // ?auto=timeout: the pit wall never answers, so every pop-up hits the decision deadline
+        var AUTO = { accept: "accept", reject: "reject", timeout: "timeout" }[params.get("auto")] || null;
         var AUTO_DELAY_MS = (Number(params.get("delay")) || 4) * 1000;
 
         if (LIVE) {

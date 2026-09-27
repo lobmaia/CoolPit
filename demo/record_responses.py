@@ -8,6 +8,7 @@ then serves instead of calling Gemini.
 
 Run (needs a GEMINI_API_KEY with quota left):
     python demo/record_responses.py --start-lap 10 --step 5
+    python demo/record_responses.py --race-start      # lap 1, vest OFF → demo/saved_responses_race_start.json
 
 If Gemini fails partway (quota, overload), the laps recorded so far are kept. Run the same command
 again later and it continues from where it stopped.
@@ -25,24 +26,36 @@ sys.path.insert(0, os.path.dirname(DEMO_DIR))
 sys.path.insert(0, DEMO_DIR)
 
 import cooling_vest_agent as agent  # noqa: E402
-from demo_server import DEFAULT_REPLAY, advance_vest, replay_key  # noqa: E402
+from demo_server import (DEFAULT_INPUT, DEFAULT_REPLAY, RACE_START_INPUT, RACE_START_REPLAY,  # noqa: E402
+                         advance_vest, replay_key)
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input", default=os.path.join(os.path.dirname(DEMO_DIR), "sample_input.json"))
-    parser.add_argument("--start-lap", type=int, default=10)
+    parser.add_argument("--input")
+    parser.add_argument("--race-start", action="store_true",
+                        help="record from lap 1 with the vest OFF (demo/race_start.json) into "
+                             "demo/saved_responses_race_start.json")
+    parser.add_argument("--start-lap", type=int)
     parser.add_argument("--step", type=int, default=5)
-    parser.add_argument("--out", default=DEFAULT_REPLAY)
+    parser.add_argument("--out")
     parser.add_argument("--delay", type=float, default=3.0, help="seconds between Gemini calls (free-tier rate limits)")
     parser.add_argument("--model", help=f"Gemini model to use (default {agent.MODEL}); free-tier quota is per model")
     args = parser.parse_args()
     if args.model:
         agent.MODEL = args.model
+    if args.race_start:
+        args.input = args.input or RACE_START_INPUT
+        args.start_lap = args.start_lap or 1
+        args.out = args.out or RACE_START_REPLAY
+    args.input = args.input or DEFAULT_INPUT
+    args.start_lap = args.start_lap or 10
+    args.out = args.out or DEFAULT_REPLAY
 
     with open(args.input, encoding="utf-8") as f:
         raw = json.load(f)
     raw["current_lap"] = args.start_lap
+    start_input = copy.deepcopy(raw)   # stored in the recording, so --replay starts from the same vest state
     _, total_laps = agent._race_data(raw["year"], raw["event"], raw["driver"])
 
     # Resume: keep responses already recorded for the same path
@@ -84,7 +97,7 @@ def main():
             "race": f"{raw['year']} {raw['event']}", "driver": raw["driver"],
             "start_lap": args.start_lap, "step": args.step, "path": "every recommended change accepted",
             "model": agent.MODEL, "recorded_at": datetime.now().isoformat(timespec="seconds"),
-            "complete": complete,
+            "complete": complete, "start_input": start_input,
         },
         "responses": responses,
     }

@@ -10,6 +10,8 @@ Run:
     python demo/demo_server.py --start-lap 10 --step 5
     python demo/demo_server.py --offline        # skip Gemini, use the rule-based fallback right away
     python demo/demo_server.py --replay         # answer from demo/saved_responses.json (no Gemini quota needed)
+    python demo/demo_server.py --race-start     # from lap 1 with the vest OFF (demo/race_start.json)
+    python demo/demo_server.py --race-start --replay   # same, answered from demo/saved_responses_race_start.json
 
 API:
     GET  /                → the pop-up page
@@ -17,6 +19,8 @@ API:
     POST /api/decide      → ask Gemini for the current lap; returns {decision, ui, source, lap, ...}
     POST /api/respond     → body {"accepted": true|false}; applies the engineer's choice and moves on
                             by --step laps (when no change was needed, "accepted" is ignored).
+                            {"timed_out": true} = the pit wall did not answer within --decision-timeout:
+                            safety default, the vest keeps its current setting (same as a reject).
                             Also returns "simulation": per-lap data for the laps driven with that setting
     GET  /api/track       → circuit outline for the simulation's track map (demo/track.json)
     GET  /vest3d          → teammate's "F1 Cooling Vest 3D.html", with Three.js served from demo/vendor
@@ -39,7 +43,10 @@ sys.path.insert(0, ROOT_DIR)
 
 import cooling_vest_agent as agent  # noqa: E402
 
+DEFAULT_INPUT = os.path.join(ROOT_DIR, "sample_input.json")
 DEFAULT_REPLAY = os.path.join(DEMO_DIR, "saved_responses.json")
+RACE_START_INPUT = os.path.join(DEMO_DIR, "race_start.json")   # lap 1, vest OFF, full capacity
+RACE_START_REPLAY = os.path.join(DEMO_DIR, "saved_responses_race_start.json")
 
 # Simulated capacity drain per lap for each setting, in % (placeholder values)
 CAPACITY_USE_PER_LAP = {"OFF": 0.0, "LOW": 0.5, "MEDIUM": 1.0, "HIGH": 2.0}
@@ -158,8 +165,11 @@ def load_replay(path):
 
 
 def reset_state():
-    with open(config["input"], encoding="utf-8") as f:
-        raw = json.load(f)
+    if config.get("start_input"):   # starting point stored in the replay recording
+        raw = copy.deepcopy(config["start_input"])
+    else:
+        with open(config["input"], encoding="utf-8") as f:
+            raw = json.load(f)
     raw["current_lap"] = config["start_lap"] or raw["current_lap"]
     _, total_laps = agent._race_data(raw["year"], raw["event"], raw["driver"])
     state.clear()
@@ -181,6 +191,7 @@ def public_state():
         "lap": raw["current_lap"],
         "total_laps": state["total_laps"],
         "step": config["step"],
+        "decision_timeout_s": config["decision_timeout"],
         "vest_state": raw["vest_state"],
         "finished": state["finished"],
         "last": state["last"],
@@ -269,12 +280,15 @@ def respond():
     last = state["last"]
     if last is None or last["lap"] != state["raw"]["current_lap"]:
         return jsonify({"error": "No decision for this lap yet. POST /api/decide first."}), 409
-    accepted = bool((request.get_json(silent=True) or {}).get("accepted", False))
+    body = request.get_json(silent=True) or {}
+    timed_out = bool(body.get("timed_out", False))
+    accepted = bool(body.get("accepted", False)) and not timed_out   # no answer never changes the vest
 
     with lock:
         raw, decision, step = state["raw"], last["decision"], config["step"]
         vest = advance_vest(raw["vest_state"], decision, accepted, step)
         simulation = build_simulation(raw, decision, accepted, vest, step, state["total_laps"])
+        simulation["timed_out"] = timed_out
         # keep the capacity shown at the end of the simulation consistent with the vest state
         if simulation["laps"]:
             vest["capacity_remaining_pct"] = simulation["laps"][-1]["capacity_pct"]
@@ -285,6 +299,7 @@ def respond():
             "previous": decision["previous_setting"],
             "change_required": decision["change_required"],
             "accepted": accepted if decision["change_required"] else None,
+            "timed_out": timed_out,
             "applied_setting": vest["setting"],
             "source": last["source"],
         })
@@ -307,9 +322,16 @@ def reset():
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input", default=os.path.join(ROOT_DIR, "sample_input.json"))
+    parser.add_argument("--input", help="race + starting vest state (default: sample_input.json, or the one "
+                                        "stored in the --replay recording)")
+    parser.add_argument("--race-start", action="store_true",
+                        help="start at lap 1 with the vest OFF (demo/race_start.json); with --replay, answer from "
+                             "demo/saved_responses_race_start.json")
     parser.add_argument("--start-lap", type=int, help="first lap to decide (default: current_lap in the input)")
     parser.add_argument("--step", type=int, help="laps to advance after each decision (default 5)")
+    parser.add_argument("--decision-timeout", type=int, default=20, metavar="SECONDS",
+                        help="seconds the pit wall has to answer a pop-up; after that the vest keeps its setting "
+                             "(0 = wait forever, default 20)")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=5000)
     parser.add_argument("--offline", action="store_true", help="skip Gemini and use the rule-based fallback")
@@ -317,15 +339,27 @@ def main():
                         help="answer from saved Gemini responses (default file: demo/saved_responses.json)")
     args = parser.parse_args()
 
-    replay = {}
+    if args.race_start:
+        args.input = args.input or RACE_START_INPUT
+        if args.replay == DEFAULT_REPLAY:
+            args.replay = RACE_START_REPLAY
+
+    replay, start_input = {}, None
     if args.replay:
+        if not os.path.exists(args.replay):
+            sys.exit(f"❌ No recording at {args.replay}. Record one first (needs GEMINI_API_KEY), e.g.\n"
+                     f"   python demo/record_responses.py --race-start\n"
+                     f"or run without --replay (live Gemini) or with --offline (rule-based).")
         meta, replay = load_replay(args.replay)
+        if not args.input:
+            start_input = meta.get("start_input")   # recordings made after --race-start was added store it
         # use the recorded start lap and step unless given explicitly
         args.start_lap = args.start_lap or meta["start_lap"]
         args.step = args.step or meta["step"]
         print(f"🎞️ Replay mode: {len(replay)} saved responses from {args.replay} "
               f"(recorded path: start lap {meta['start_lap']}, step {meta['step']}, every change accepted)")
-    config.update({"input": args.input, "start_lap": args.start_lap, "step": args.step or 5, "replay": replay})
+    config.update({"input": args.input or DEFAULT_INPUT, "start_input": start_input, "start_lap": args.start_lap, "step": args.step or 5, "replay": replay,
+                   "decision_timeout": max(0, args.decision_timeout)})
 
     if args.offline:
         def no_gemini(_prompt):
