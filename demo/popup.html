@@ -15,6 +15,8 @@
 
       Live mode: run  python demo/demo_server.py  and open http://localhost:5000
       Accepted changes first play the 3D cooling vest cinematic (teammate's page at /vest3d), then the lap simulation.
+      Auto-play test cases: add ?auto=accept (or ?auto=reject), optionally &delay=<seconds per pop-up, default 4>.
+      The pit wall's choice is shown as a toast: CoolPitPopup.toast(kind, title, text).
       Preview without a server: open this file and add ?state=critical | green | cold | keep | loading | sim
       (?state=3d needs the server: http://localhost:5000/?state=3d)
       (the sim preview shows the track map only when opened through the server: http://localhost:5000/?state=sim)
@@ -704,6 +706,77 @@
 
         .stage3d-bar .btn { padding: 8px 16px; font-size: 12px; }
 
+        /* ---------- Toasts: short pit-wall messages, shown above the pop-up, simulation and 3D ---------- */
+        .toasts {
+            position: fixed;
+            top: 72px;   /* below the 3D stage bar */
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            width: min(420px, calc(100% - 32px));
+            pointer-events: none;
+        }
+
+        .toast {
+            --toast-accent: #22d3ee;
+            width: 100%;
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            padding: 12px 16px;
+            background: rgba(15, 20, 27, 0.94);
+            color: #e5e9f0;
+            border: 1px solid #273142;
+            border-left: 4px solid var(--toast-accent);
+            border-radius: 10px;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+            animation: toastIn 0.35s ease-out;
+        }
+
+        .toast[data-kind="approved"] { --toast-accent: #22c55e; }
+        .toast[data-kind="rejected"] { --toast-accent: #fbbf24; }
+        .toast[data-kind="flag"] { --toast-accent: #fbbf24; }
+
+        .toast-icon {
+            font-size: 18px;
+            line-height: 1.2;
+            color: var(--toast-accent);
+        }
+
+        .toast-title {
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            color: var(--toast-accent);
+        }
+
+        .toast-text {
+            margin-top: 3px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .toast.leaving { animation: toastOut 0.3s ease-in forwards; }
+
+        @keyframes toastIn {
+            from { opacity: 0; transform: translateY(-12px); }
+            to { opacity: 1; transform: none; }
+        }
+
+        @keyframes toastOut {
+            to { opacity: 0; transform: translateY(-12px); }
+        }
+
+        /* Auto-play: ring on the button the pit wall is about to press */
+        .btn.auto-pick {
+            box-shadow: 0 0 0 3px #ffffff, 0 0 0 6px var(--btn);
+        }
+
         @media (max-width: 768px) {
             .sim-body { grid-template-columns: 1fr; padding: 20px; }
             .sim-header, .sim-footer { padding: 16px 20px; }
@@ -713,6 +786,7 @@
             .status-led, .spinner { animation: none; }
             .needle { transition: none; }
             .level, .capacity-fill { transition: none; }
+            .toast, .toast.leaving { animation: none; }
         }
 
         @media (max-width: 768px) {
@@ -917,6 +991,8 @@
         </div>
     </div>
 
+    <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+
     <script>
     (function () {
         // Gauge: track temperature mapped linearly onto the dial (placeholder range)
@@ -1084,6 +1160,37 @@
             footer.appendChild(note);
         }
 
+        // ---- Toasts: kind = approved | rejected | flag | info ----
+        var TOAST_MS = 6000;
+        var TOAST_ICON = { approved: "✓", rejected: "✕", flag: "⚑", info: "ℹ" };
+
+        function toast(kind, title, text, ms) {
+            var el = document.createElement("div");
+            el.className = "toast";
+            el.dataset.kind = kind;
+            var icon = document.createElement("span");
+            icon.className = "toast-icon";
+            icon.setAttribute("aria-hidden", "true");
+            icon.textContent = TOAST_ICON[kind] || TOAST_ICON.info;
+            var body = document.createElement("div");
+            var t = document.createElement("div");
+            t.className = "toast-title";
+            t.textContent = title;
+            var p = document.createElement("div");
+            p.className = "toast-text";
+            p.textContent = text;
+            body.appendChild(t);
+            body.appendChild(p);
+            el.appendChild(icon);
+            el.appendChild(body);
+            $("toasts").appendChild(el);
+            setTimeout(function () {
+                el.classList.add("leaving");
+                setTimeout(function () { el.remove(); }, 300);
+            }, ms || TOAST_MS);
+        }
+
+        CoolPitPopup.toast = toast;
         window.CoolPitPopup = CoolPitPopup;
 
         // ---- Preview mode: ?state=critical | green | cold | keep | loading ----
@@ -1181,6 +1288,11 @@
             var status = $("sim-status");
             status.textContent = lap.track_status.replace("_", " ");
             status.className = lap.track_status === "GREEN" ? "" : "flag";
+            var prevStatus = i ? sim.laps[i - 1].track_status : "GREEN";
+            if (lap.track_status !== "GREEN" && lap.track_status !== prevStatus) {
+                toast("flag", "Lap " + lap.lap + " · " + lap.track_status.replace("_", " "),
+                      "Vest stays on " + sim.setting_after + " · heat index " + lap.heat_index_c + "°C");
+            }
             setCapacity(lap.capacity_pct);
             var row = document.createElement("div");
             row.className = "new";
@@ -1377,11 +1489,42 @@
             });
         }
 
+        var currentLap = null;
+
         function renderDecision(d) {
+            currentLap = d.lap;
             CoolPitPopup.render(d.ui, {
                 lap: d.lap, totalLaps: d.total_laps, driver: d.driver, vest: d.vest_state, source: d.source
             });
+            if (AUTO) autoDecide(d.ui);
         }
+
+        // ---- Auto-play (?auto=accept | reject): the pit wall answers every pop-up by itself ----
+        // Shows the recommendation for AUTO_DELAY_MS, rings the button it is about to press, then presses it.
+        function autoDecide(ui) {
+            var footer = $("footer");
+            var pick = ui.change_required
+                ? footer.querySelector(AUTO === "reject" ? ".btn-reject" : ".btn-accept")
+                : footer.querySelector(".btn");
+            if (!pick) return;
+            var note = document.createElement("span");
+            note.className = "footer-note";
+            footer.insertBefore(note, footer.firstChild);
+            var left = Math.ceil(AUTO_DELAY_MS / 1000);
+            (function tick() {
+                if (!pick.isConnected || pick.disabled) return;   // answered by hand in the meantime
+                if (left > 0) {
+                    note.textContent = "Pit wall reviewing… " + left + "s";
+                    left--;
+                    return setTimeout(tick, 1000);
+                }
+                note.textContent = "Pit wall decided";
+                pick.classList.add("auto-pick");
+                setTimeout(function () { if (!pick.disabled) pick.click(); }, 700);
+            })();
+        }
+
+        function lapText() { return currentLap ? " · lap " + currentLap : ""; }
 
         function loadLap(st) {
             if (st.finished) return showFinished(st);
@@ -1443,6 +1586,10 @@
                     : (h.accepted ? "accepted " : "rejected ") + h.previous + " → " + h.recommended;
                 return "Lap " + h.lap + ": " + what;
             }));
+            if (AUTO) {
+                toast("info", "Race finished", accepted + " of " + changes.length + " changes approved · final setting " +
+                      st.vest_state.setting, 10000);
+            }
             CoolPitPopup.footerMessage("Replay finished.", [{
                 label: "Restart race", primary: true,
                 onClick: function () { this.disabled = true; api("POST", "/api/reset").then(loadLap).catch(showError); }
@@ -1458,11 +1605,22 @@
         var params = new URLSearchParams(location.search);
         var previewState = params.get("state");
         var LIVE = /^https?:$/.test(location.protocol) && !previewState;
+        var AUTO = { accept: "accept", reject: "reject" }[params.get("auto")] || null;
+        var AUTO_DELAY_MS = (Number(params.get("delay")) || 4) * 1000;
 
         if (LIVE) {
-            CoolPitPopup.onAccept = function (ui) { sendResponse(true, "Changed to " + ui.switch_to + ". Moving to the next lap…"); };
-            CoolPitPopup.onReject = function (ui) { sendResponse(false, "Staying with " + ui.from + ". Moving to the next lap…"); };
-            CoolPitPopup.onContinue = function (ui) { sendResponse(false, "Keeping " + ui.switch_to + ". Moving to the next lap…"); };
+            CoolPitPopup.onAccept = function (ui) {
+                toast("approved", "Pit wall approved" + lapText(), "Changing cooling vest " + ui.from + " → " + ui.switch_to);
+                sendResponse(true, "Changed to " + ui.switch_to + ". Moving to the next lap…");
+            };
+            CoolPitPopup.onReject = function (ui) {
+                toast("rejected", "Pit wall rejected" + lapText(), "Staying on " + ui.from + " (CoolPit suggested " + ui.switch_to + ")");
+                sendResponse(false, "Staying with " + ui.from + ". Moving to the next lap…");
+            };
+            CoolPitPopup.onContinue = function (ui) {
+                toast("info", "No change needed" + lapText(), "Cooling vest stays on " + ui.switch_to, 3500);
+                sendResponse(false, "Keeping " + ui.switch_to + ". Moving to the next lap…");
+            };
             loadVest3d();   // load the 3D page in the background so it is ready by the first accepted change
             api("GET", "/api/state").then(start).catch(showError);
         } else if (previewState === "3d") {

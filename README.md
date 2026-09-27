@@ -46,6 +46,20 @@ python demo\demo_server.py --replay     # then open http://localhost:5000
 | `--start-lap`, `--step` | First lap and laps per decision (the recording uses 10 and 5) |
 | `--host 0.0.0.0` | Let others on the same Wi-Fi open `http://<your-ip>:5000` |
 
+**Auto-play (hands-free test cases).** Add `?auto=accept` to the URL and the pit wall answers every pop-up by
+itself: each recommendation stays on screen for a few seconds, then it is approved, and a toast
+("Pit wall approved · lap 15 — Changing cooling vest LOW → MEDIUM") stays visible over the 3D scene and the simulation.
+
+| URL | Test case |
+|---|---|
+| `http://localhost:5000/?auto=accept` | 1 · Pit wall accepts every suggestion (matches the `--replay` recording) |
+| `http://localhost:5000/?auto=accept&delay=8` | Same, with 8 s to talk over each pop-up (default 4 s) |
+| `http://localhost:5000/?auto=reject` | Pit wall rejects every change (leaves the recording, so it needs Gemini or `--offline`) |
+
+If a page refresh leaves the race half-way, restart the server (or `POST /api/reset`) to start the test case from lap 10 again.
+Toasts also appear in manual mode when you click Accept / Reject / Continue, and when the simulation reaches a
+safety car or flag lap.
+
 Previews without clicking through: `http://localhost:5000/?state=sim` (lap simulation) and `?state=3d` (3D step).
 
 | Demo file | What it is |

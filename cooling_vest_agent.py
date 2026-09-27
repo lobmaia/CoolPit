@@ -130,6 +130,7 @@ class VestDecision(BaseModel):
 # 2. Race data (FastF1 stands in for the live race feed)
 # =============================================================================
 def load_race(year, event):
+    os.makedirs(CACHE_DIR, exist_ok=True)   # f1_cache/ is git-ignored, so a fresh clone does not have it
     fastf1.Cache.enable_cache(CACHE_DIR)
     fastf1.set_log_level("CRITICAL")
     session = fastf1.get_session(year, event, "R")
