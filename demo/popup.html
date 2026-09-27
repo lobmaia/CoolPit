@@ -1,0 +1,1507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cooling System</title>
+    <!--
+      CoolPit pit-wall pop-up: single template built from HTML schemas/popup_ui*.html
+      (popup_ui.html = CRITICAL_HEAT, popup_ui_cool.html = GREEN_ZONE, popup_ui_cold.html = COLD_SNAP).
+
+      Fill it with the "ui" object returned by decide_vest():
+          CoolPitPopup.render(ui, {lap: 45, totalLaps: 57, driver: "VER"})
+          CoolPitPopup.showLoading("Analysing lap 45…")
+          CoolPitPopup.onAccept / onReject / onContinue = (ui) => { ... }
+
+      Live mode: run  python demo/demo_server.py  and open http://localhost:5000
+      Accepted changes first play the 3D cooling vest cinematic (teammate's page at /vest3d), then the lap simulation.
+      Preview without a server: open this file and add ?state=critical | green | cold | keep | loading | sim
+      (?state=3d needs the server: http://localhost:5000/?state=3d)
+      (the sim preview shows the track map only when opened through the server: http://localhost:5000/?state=sim)
+    -->
+    <style>
+        /* Zone themes: colours taken from the three mockups */
+        .card[data-zone="CRITICAL_HEAT"] {
+            --head-a: #ef4444; --head-b: #dc2626;
+            --led: #ef4444; --led-glow: rgba(239, 68, 68, 0.9);
+            --status-bg: #fef2f2; --status-line: #ef4444; --status-text: #991b1b;
+            --rec: #ef4444; --risk-line: #fecaca;
+            --btn: #ef4444; --btn-hover: #dc2626; --btn-active: #b91c1c;
+        }
+        .card[data-zone="GREEN_ZONE"] {
+            --head-a: #06b6d4; --head-b: #0891b2;
+            --led: #22c55e; --led-glow: rgba(6, 182, 212, 0.9);
+            --status-bg: #ecfeff; --status-line: #06b6d4; --status-text: #164e63;
+            --rec: #06b6d4; --risk-line: #a5f3fc;
+            --btn: #22c55e; --btn-hover: #0891b2; --btn-active: #0e7490;
+        }
+        .card[data-zone="COLD_SNAP"] {
+            --head-a: #3b82f6; --head-b: #1d4ed8;
+            --led: #3b82f6; --led-glow: rgba(59, 130, 246, 0.9);
+            --status-bg: #eff6ff; --status-line: #3b82f6; --status-text: #1e40af;
+            --rec: #3b82f6; --risk-line: #bfdbfe;
+            --btn: #3b82f6; --btn-hover: #1d4ed8; --btn-active: #1e40af;
+        }
+        .card[data-zone="LOADING"] {
+            --head-a: #4b5563; --head-b: #374151;
+            --led: #9ca3af; --led-glow: rgba(156, 163, 175, 0.9);
+            --status-bg: #f3f4f6; --status-line: #9ca3af; --status-text: #374151;
+            --rec: #9ca3af; --risk-line: #e5e7eb;
+            --btn: #9ca3af; --btn-hover: #9ca3af; --btn-active: #9ca3af;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .card {
+            width: 100%;
+            max-width: 850px;
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--head-a) 0%, var(--head-b) 100%);
+            padding: 28px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            transition: background 0.4s;
+        }
+
+        .header-left {
+            flex: 1;
+        }
+
+        .header-right {
+            flex-shrink: 0;
+            width: 220px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .dashboard {
+            width: 210px;
+            padding: 12px 14px 10px 14px;
+            background: linear-gradient(180deg, #1a1a24 0%, #0a0a12 100%);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+            position: relative;
+        }
+
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+            padding: 0 4px;
+        }
+
+        .dashboard-label {
+            font-family: 'Courier New', monospace;
+            font-size: 9px;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.5);
+            letter-spacing: 1.5px;
+        }
+
+        .status-led {
+            width: 6px;
+            height: 6px;
+            background: var(--led);
+            border-radius: 50%;
+            box-shadow: 0 0 6px var(--led-glow);
+            animation: ledPulse 1s ease-in-out infinite;
+        }
+
+        .gauge-svg {
+            display: block;
+            margin: 0 auto;
+            width: 100%;
+            height: 90px;
+        }
+
+        .needle {
+            transform-box: view-box;
+            transform-origin: 100px 110px;
+            transform: rotate(-90deg);
+            transition: transform 2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .dashboard-readout {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 4px 0 4px;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+            margin-top: 4px;
+        }
+
+        .temp-display {
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            font-weight: 800;
+            color: #fbbf24;
+            letter-spacing: 1px;
+            text-shadow: 0 0 8px rgba(251, 191, 36, 0.5);
+        }
+
+        .temp-unit-label {
+            font-family: 'Courier New', monospace;
+            font-size: 9px;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.4);
+            letter-spacing: 1px;
+        }
+
+        @keyframes ledPulse {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+        }
+
+        .title {
+            font-size: 28px;
+            font-weight: 900;
+            color: white;
+            margin: 0;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .subtitle {
+            margin-top: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.8);
+            letter-spacing: 1.5px;
+        }
+
+        .body {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 32px;
+            padding: 36px 32px;
+        }
+
+        /* Column styling */
+        .column {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .conditions {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .cond-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+        }
+
+        .cond-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .cond-value {
+            font-size: 26px;
+            font-weight: 700;
+            color: #1f2937;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .status {
+            margin-top: 16px;
+            padding: 12px 14px;
+            background: var(--status-bg);
+            border-left: 3px solid var(--status-line);
+            font-size: 13px;
+            color: var(--status-text);
+            font-weight: 500;
+        }
+
+        /* Recommendation */
+        .recommendation {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            gap: 14px;
+        }
+
+        .rec-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: #9ca3af;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+        }
+
+        .rec-value {
+            font-size: 42px;
+            font-weight: 800;
+            color: var(--rec);
+            letter-spacing: -0.5px;
+        }
+
+        .rec-current {
+            font-size: 15px;
+            color: #1f2937;
+            margin-bottom: 8px;
+            font-weight: 600;
+            background: #f3f4f6;
+            padding: 8px 16px;
+            border-radius: 6px;
+        }
+
+        .rec-reason {
+            font-size: 13px;
+            color: #4b5563;
+            line-height: 1.5;
+            max-width: 200px;
+        }
+
+        /* Risks */
+        .risks {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .risks-title {
+            font-size: 11px;
+            font-weight: 700;
+            color: #9ca3af;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            margin-bottom: 2px;
+        }
+
+        .risk-item {
+            display: flex;
+            gap: 10px;
+            font-size: 13px;
+            color: #374151;
+            line-height: 1.4;
+            padding: 8px 10px;
+            background: #f9fafb;
+            border-radius: 6px;
+            border-left: 2px solid var(--risk-line);
+        }
+
+        .risk-icon {
+            font-size: 14px;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        /* Footer */
+        .footer {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            padding: 20px 32px;
+            background: #f9fafb;
+            border-top: 1px solid #e5e7eb;
+            min-height: 78px;
+        }
+
+        .footer-note {
+            font-size: 13px;
+            font-weight: 600;
+            color: #4b5563;
+        }
+
+        .btn {
+            padding: 11px 32px;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn:focus-visible {
+            outline: 3px solid #111827;
+            outline-offset: 2px;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-accept {
+            background: var(--btn);
+            color: white;
+        }
+
+        .btn-accept:hover:not(:disabled) {
+            background: var(--btn-hover);
+        }
+
+        .btn-accept:active:not(:disabled) {
+            background: var(--btn-active);
+        }
+
+        .btn-reject {
+            background: white;
+            color: #6b7280;
+            border: 1px solid #d1d5db;
+        }
+
+        .btn-reject:hover:not(:disabled) {
+            background: #f3f4f6;
+            color: #374151;
+        }
+
+        .btn-reject:active:not(:disabled) {
+            background: #e5e7eb;
+        }
+
+        /* Loading: dim the content and show a spinner in the recommendation column */
+        .card.is-loading .body > :not(.recommendation) {
+            opacity: 0.45;
+        }
+
+        .spinner {
+            width: 36px;
+            height: 36px;
+            border: 4px solid #e5e7eb;
+            border-top-color: #6b7280;
+            border-radius: 50%;
+            animation: spin 0.9s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        [hidden] { display: none !important; }
+
+        /* ---------- Simulation view (shown after Accept / Reject / Continue) ---------- */
+        .sim {
+            --sim-bg: #0f141b; --sim-panel: #161d27; --sim-line: #273142; --sim-text: #e5e9f0;
+            --sim-muted: #8b96a8; --vest-off: #4b5563; --vest-low: #67e8f9; --vest-medium: #22d3ee;
+            --vest-high: #0ea5e9; --warn: #fbbf24;
+            width: 100%;
+            max-width: 850px;
+            background: var(--sim-bg);
+            color: var(--sim-text);
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+            overflow: hidden;
+            border: 1px solid var(--sim-line);
+        }
+
+        .sim-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            padding: 20px 28px;
+            border-bottom: 1px solid var(--sim-line);
+        }
+
+        .sim-title {
+            font-size: 22px;
+            font-weight: 900;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .sim-sub {
+            margin-top: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--sim-muted);
+            letter-spacing: 1.5px;
+        }
+
+        .sim-badge {
+            font-size: 13px;
+            font-weight: 700;
+            padding: 8px 14px;
+            border-radius: 8px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            background: rgba(14, 165, 233, 0.15);
+            color: var(--vest-low);
+            border: 1px solid rgba(14, 165, 233, 0.4);
+        }
+
+        .sim-badge.rejected {
+            background: rgba(251, 191, 36, 0.12);
+            color: var(--warn);
+            border-color: rgba(251, 191, 36, 0.4);
+        }
+
+        .sim-body {
+            display: grid;
+            grid-template-columns: 1.25fr 1fr;
+            gap: 24px;
+            padding: 24px 28px;
+        }
+
+        .track-box {
+            background: var(--sim-panel);
+            border: 1px solid var(--sim-line);
+            border-radius: 12px;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .track-svg {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .lap-counter {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            font-family: 'Courier New', monospace;
+            font-weight: 800;
+        }
+
+        .lap-counter b {
+            font-size: 30px;
+            letter-spacing: 1px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .lap-counter span {
+            color: var(--sim-muted);
+            font-size: 12px;
+            letter-spacing: 1.5px;
+        }
+
+        .sim-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+
+        .sim-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--sim-muted);
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            margin-bottom: 8px;
+        }
+
+        .levels {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 6px;
+        }
+
+        .level {
+            text-align: center;
+            padding: 10px 0;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            background: var(--sim-panel);
+            color: var(--sim-muted);
+            border: 1px solid var(--sim-line);
+            transition: all 0.5s;
+        }
+
+        .level.was {
+            border-style: dashed;
+            border-color: var(--sim-muted);
+        }
+
+        .level.active {
+            color: #0b1220;
+            border-color: transparent;
+            box-shadow: 0 0 16px rgba(34, 211, 238, 0.45);
+        }
+
+        .level.active[data-level="OFF"] { background: var(--vest-off); color: #fff; box-shadow: none; }
+        .level.active[data-level="LOW"] { background: var(--vest-low); }
+        .level.active[data-level="MEDIUM"] { background: var(--vest-medium); }
+        .level.active[data-level="HIGH"] { background: var(--vest-high); color: #fff; }
+
+        .level-note {
+            margin-top: 8px;
+            font-size: 12px;
+            color: var(--sim-muted);
+        }
+
+        .capacity-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+        }
+
+        .capacity-value {
+            font-family: 'Courier New', monospace;
+            font-size: 20px;
+            font-weight: 800;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .capacity-bar {
+            height: 12px;
+            border-radius: 6px;
+            background: var(--sim-panel);
+            border: 1px solid var(--sim-line);
+            overflow: hidden;
+        }
+
+        .capacity-fill {
+            height: 100%;
+            width: 0;
+            background: linear-gradient(90deg, var(--vest-high), var(--vest-low));
+            transition: width 0.6s ease;
+        }
+
+        .cond-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+
+        .cond-cell {
+            background: var(--sim-panel);
+            border: 1px solid var(--sim-line);
+            border-radius: 8px;
+            padding: 8px 10px;
+        }
+
+        .cond-cell span {
+            display: block;
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--sim-muted);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .cond-cell b {
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .cond-cell b.flag { color: var(--warn); }
+
+        .lap-log {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: var(--sim-muted);
+            max-height: 110px;
+            overflow-y: auto;
+        }
+
+        .lap-log div.new { color: var(--sim-text); }
+
+        .sim-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            padding: 16px 28px;
+            border-top: 1px solid var(--sim-line);
+            font-size: 13px;
+            color: var(--sim-muted);
+        }
+
+        .btn-ghost {
+            background: transparent;
+            color: var(--sim-text);
+            border: 1px solid var(--sim-line);
+        }
+
+        .btn-ghost:hover { background: var(--sim-panel); }
+
+        /* ---------- 3D cooling vest (teammate's page in an iframe, loaded in the background) ---------- */
+        .stage3d {
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            opacity: 0;
+            pointer-events: none;
+            background: #0c1116;
+            transition: opacity 0.5s;
+        }
+
+        .stage3d.show {
+            z-index: 50;
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .stage3d iframe {
+            width: 100%;
+            height: 100%;
+            border: 0;
+            display: block;
+        }
+
+        .stage3d-bar {
+            position: absolute;
+            top: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 8px 8px 8px 16px;
+            max-width: calc(100% - 32px);
+            background: rgba(15, 20, 27, 0.88);
+            border: 1px solid #273142;
+            border-radius: 10px;
+            color: #e5e9f0;
+            font-size: 13px;
+            font-weight: 600;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+        }
+
+        .stage3d-bar .btn { padding: 8px 16px; font-size: 12px; }
+
+        @media (max-width: 768px) {
+            .sim-body { grid-template-columns: 1fr; padding: 20px; }
+            .sim-header, .sim-footer { padding: 16px 20px; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .status-led, .spinner { animation: none; }
+            .needle { transition: none; }
+            .level, .capacity-fill { transition: none; }
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                flex-wrap: wrap;
+            }
+
+            .body {
+                grid-template-columns: 1fr;
+                gap: 28px;
+                padding: 28px 24px;
+            }
+
+            .title {
+                font-size: 20px;
+            }
+
+            .rec-value {
+                font-size: 36px;
+            }
+
+            .cond-value {
+                font-size: 22px;
+            }
+
+            .footer {
+                padding: 16px 24px;
+                gap: 10px;
+                flex-wrap: wrap;
+            }
+
+            .btn {
+                padding: 10px 28px;
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="card" id="card" data-zone="LOADING">
+        <div class="header">
+            <div class="header-left">
+                <h1 class="title" id="title">Waiting for data</h1>
+                <p class="subtitle" id="subtitle"></p>
+            </div>
+            <div class="header-right">
+                <div class="dashboard">
+                    <div class="dashboard-header">
+                        <span class="dashboard-label">TEMP MONITOR</span>
+                        <div class="status-led"></div>
+                    </div>
+                    <svg class="gauge-svg" viewBox="0 0 200 130" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <defs>
+                            <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" style="stop-color:#0369a1"/>
+                                <stop offset="20%" style="stop-color:#06b6d4"/>
+                                <stop offset="45%" style="stop-color:#84cc16"/>
+                                <stop offset="65%" style="stop-color:#fbbf24"/>
+                                <stop offset="85%" style="stop-color:#f97316"/>
+                                <stop offset="100%" style="stop-color:#dc2626"/>
+                            </linearGradient>
+                        </defs>
+
+                        <path d="M 20 110 A 80 80 0 0 1 180 110" fill="none" stroke="#1a1a24" stroke-width="18"/>
+                        <path d="M 20 110 A 80 80 0 0 1 180 110" fill="none" stroke="url(#gaugeGrad)" stroke-width="12" stroke-linecap="round"/>
+
+                        <g stroke="rgba(255,255,255,0.5)" stroke-width="2" stroke-linecap="round">
+                            <line x1="25" y1="105" x2="32" y2="98"/>
+                            <line x1="50" y1="65" x2="56" y2="61"/>
+                            <line x1="100" y1="30" x2="100" y2="38"/>
+                            <line x1="150" y1="65" x2="144" y2="61"/>
+                            <line x1="175" y1="105" x2="168" y2="98"/>
+                        </g>
+
+                        <g fill="rgba(255,255,255,0.7)" font-family="Courier New, monospace" font-size="10" font-weight="700">
+                            <text x="20" y="125" text-anchor="middle">C</text>
+                            <text x="180" y="125" text-anchor="middle">H</text>
+                        </g>
+
+                        <g class="needle" id="needle">
+                            <line x1="100" y1="110" x2="100" y2="35" stroke="#ffff00" stroke-width="4" stroke-linecap="round"/>
+                        </g>
+
+                        <circle cx="100" cy="110" r="10" fill="#1a1a24" stroke="#ffd700" stroke-width="2"/>
+                        <circle cx="100" cy="110" r="5" fill="#ffd700"/>
+                    </svg>
+                    <div class="dashboard-readout">
+                        <span class="temp-unit-label">TRACK</span>
+                        <span class="temp-display" id="gauge-temp">--°C</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="body">
+            <div class="column">
+                <div class="conditions">
+                    <div class="cond-item">
+                        <span class="cond-label">Air</span>
+                        <span class="cond-value" id="air">--</span>
+                    </div>
+                    <div class="cond-item">
+                        <span class="cond-label">Track</span>
+                        <span class="cond-value" id="track">--</span>
+                    </div>
+                    <div class="cond-item">
+                        <span class="cond-label">Humidity</span>
+                        <span class="cond-value" id="humidity">--</span>
+                    </div>
+                </div>
+                <div class="status" id="status">Waiting for race data</div>
+            </div>
+
+            <div class="recommendation" id="recommendation" aria-live="polite">
+                <div class="rec-label" id="rec-label">Switch to</div>
+                <div class="rec-value" id="rec-value">--</div>
+                <div class="rec-current" id="rec-current">From: --</div>
+                <div class="rec-reason" id="rec-reason"></div>
+            </div>
+
+            <div class="risks">
+                <div class="risks-title">Monitor</div>
+                <div id="monitor"></div>
+            </div>
+        </div>
+
+        <div class="footer" id="footer">
+            <span class="footer-note">Waiting for data</span>
+        </div>
+    </div>
+
+    <div class="sim" id="sim" hidden>
+        <div class="sim-header">
+            <div>
+                <div class="sim-title">Race simulation</div>
+                <div class="sim-sub" id="sim-sub"></div>
+            </div>
+            <div class="sim-badge" id="sim-badge"></div>
+        </div>
+
+        <div class="sim-body">
+            <div class="track-box">
+                <svg class="track-svg" id="track-svg" viewBox="-40 -40 1080 800" aria-label="Track map">
+                    <path id="track-path" d="" fill="none" stroke="#273142" stroke-width="26" stroke-linejoin="round"/>
+                    <path id="track-line" d="" fill="none" stroke="#8b96a8" stroke-width="4" stroke-linejoin="round"/>
+                    <circle id="car-halo" r="26" fill="#22d3ee" opacity="0.25"/>
+                    <circle id="car" r="13" fill="#22d3ee" stroke="#0f141b" stroke-width="4"/>
+                </svg>
+                <div class="lap-counter">
+                    <span>LAP</span>
+                    <b id="sim-lap">--</b>
+                </div>
+            </div>
+
+            <div class="sim-panel">
+                <div>
+                    <div class="sim-label">Cooling vest</div>
+                    <div class="levels" id="levels">
+                        <div class="level" data-level="OFF">OFF</div>
+                        <div class="level" data-level="LOW">LOW</div>
+                        <div class="level" data-level="MEDIUM">MEDIUM</div>
+                        <div class="level" data-level="HIGH">HIGH</div>
+                    </div>
+                    <div class="level-note" id="level-note"></div>
+                </div>
+
+                <div>
+                    <div class="capacity-head">
+                        <div class="sim-label">Cooling capacity</div>
+                        <div class="capacity-value" id="capacity-value">--%</div>
+                    </div>
+                    <div class="capacity-bar"><div class="capacity-fill" id="capacity-fill"></div></div>
+                </div>
+
+                <div>
+                    <div class="sim-label">This lap</div>
+                    <div class="cond-grid">
+                        <div class="cond-cell"><span>Heat index</span><b id="sim-hi">--</b></div>
+                        <div class="cond-cell"><span>Air</span><b id="sim-air">--</b></div>
+                        <div class="cond-cell"><span>Track</span><b id="sim-status">--</b></div>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="sim-label">Lap log</div>
+                    <div class="lap-log" id="lap-log"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="sim-footer">
+            <span id="sim-progress" aria-live="polite"></span>
+            <button type="button" class="btn btn-ghost" id="sim-skip">Skip to next decision</button>
+        </div>
+    </div>
+
+    <div class="stage3d" id="stage3d" aria-hidden="true">
+        <iframe id="vest3d" title="3D cooling vest"></iframe>
+        <div class="stage3d-bar">
+            <span id="stage3d-text" aria-live="polite"></span>
+            <button type="button" class="btn btn-ghost" id="stage3d-skip">Skip 3D</button>
+        </div>
+    </div>
+
+    <script>
+    (function () {
+        // Gauge: track temperature mapped linearly onto the dial (placeholder range)
+        var GAUGE_MIN_C = 20, GAUGE_MAX_C = 45;
+        var STATUS_ICON = { CRITICAL_HEAT: "⚠️", GREEN_ZONE: "✓", COLD_SNAP: "✓" };
+
+        var $ = function (id) { return document.getElementById(id); };
+
+        function needleAngle(tempC) {
+            var t = Math.max(GAUGE_MIN_C, Math.min(GAUGE_MAX_C, tempC));
+            return -90 + (t - GAUGE_MIN_C) / (GAUGE_MAX_C - GAUGE_MIN_C) * 180;
+        }
+
+        function setNeedle(tempC) {
+            var needle = $("needle");
+            needle.style.transform = "rotate(-90deg)";
+            // restart the sweep from the left, like the original mockups
+            requestAnimationFrame(function () {
+                requestAnimationFrame(function () {
+                    needle.style.transform = "rotate(" + needleAngle(tempC) + "deg)";
+                });
+            });
+        }
+
+        function round(v) { return Math.round(Number(v)); }
+
+        function button(label, cls, handler) {
+            var b = document.createElement("button");
+            b.type = "button";
+            b.className = "btn " + cls;
+            b.textContent = label;
+            b.addEventListener("click", handler);
+            return b;
+        }
+
+        function renderMonitor(items) {
+            var box = $("monitor");
+            box.innerHTML = "";
+            box.style.display = "flex";
+            box.style.flexDirection = "column";
+            box.style.gap = "12px";
+            (items || []).forEach(function (text) {
+                var row = document.createElement("div");
+                row.className = "risk-item";
+                var icon = document.createElement("span");
+                icon.className = "risk-icon";
+                icon.textContent = "•";
+                var label = document.createElement("span");
+                label.textContent = text;
+                row.appendChild(icon);
+                row.appendChild(label);
+                box.appendChild(row);
+            });
+        }
+
+        function renderFooter(ui) {
+            var footer = $("footer");
+            footer.innerHTML = "";
+            if (ui.change_required) {
+                footer.appendChild(button(ui.accept_label, "btn-accept", function () { respond(true, ui); }));
+                footer.appendChild(button(ui.reject_label, "btn-reject", function () { respond(false, ui); }));
+            } else {
+                var note = document.createElement("span");
+                note.className = "footer-note";
+                note.textContent = "No action needed: keeping " + ui.switch_to;
+                footer.appendChild(note);
+                footer.appendChild(button("Continue", "btn-reject", function () {
+                    this.disabled = true;
+                    CoolPitPopup.onContinue(ui);
+                }));
+            }
+        }
+
+        function respond(accepted, ui) {
+            document.querySelectorAll("#footer .btn").forEach(function (b) { b.disabled = true; });
+            var handler = accepted ? CoolPitPopup.onAccept : CoolPitPopup.onReject;
+            handler(ui);
+        }
+
+        var CoolPitPopup = {
+            /** Fill the pop-up with the "ui" object from decide_vest(). meta = {lap, totalLaps, driver} (optional). */
+            render: function (ui, meta) {
+                meta = meta || {};
+                var card = $("card");
+                card.classList.remove("is-loading");
+                card.dataset.zone = ui.zone;
+
+                $("title").textContent = ui.title;
+                var sub = [];
+                if (meta.lap) sub.push("LAP " + meta.lap + (meta.totalLaps ? " / " + meta.totalLaps : ""));
+                if (meta.driver) sub.push(meta.driver);
+                if (meta.vest) sub.push("VEST " + meta.vest.setting + " · " + meta.vest.capacity_remaining_pct + "% LEFT");
+                if (meta.source === "fallback") sub.push("RULE-BASED");
+                $("subtitle").textContent = sub.join(" · ");
+
+                $("gauge-temp").textContent = round(ui.track_temp_c) + "°C";
+                setNeedle(ui.track_temp_c);
+                $("air").textContent = round(ui.air_temp_c) + "°";
+                $("track").textContent = round(ui.track_temp_c) + "°";
+                $("humidity").textContent = round(ui.humidity_pct) + "%";
+                $("status").textContent = (STATUS_ICON[ui.zone] || "") + " " + ui.status_text;
+
+                var recommendation = $("recommendation");
+                recommendation.innerHTML = "";
+                var label = document.createElement("div");
+                label.className = "rec-label";
+                label.textContent = ui.change_required ? "Switch to" : "Keep";
+                var value = document.createElement("div");
+                value.className = "rec-value";
+                value.textContent = ui.switch_to;
+                var current = document.createElement("div");
+                current.className = "rec-current";
+                current.textContent = ui.change_required ? "From: " + ui.from : "No change needed";
+                var reason = document.createElement("div");
+                reason.className = "rec-reason";
+                reason.textContent = ui.reason;
+                [label, value, current, reason].forEach(function (el) { recommendation.appendChild(el); });
+
+                renderMonitor(ui.monitor);
+                renderFooter(ui);
+            },
+
+            /** Show the waiting state while Gemini is thinking (5-15 s). */
+            showLoading: function (message) {
+                var card = $("card");
+                card.classList.add("is-loading");
+                card.dataset.zone = "LOADING";
+                var recommendation = $("recommendation");
+                recommendation.innerHTML = "";
+                var spinner = document.createElement("div");
+                spinner.className = "spinner";
+                var text = document.createElement("div");
+                text.className = "rec-label";
+                text.textContent = message || "Analysing…";
+                recommendation.appendChild(spinner);
+                recommendation.appendChild(text);
+                document.querySelectorAll("#footer .btn").forEach(function (b) { b.disabled = true; });
+            },
+
+            // Replaced by live mode (below) to call the server. Preview mode just shows the choice.
+            onAccept: function (ui) { previewNote("Accepted: change to " + ui.switch_to); },
+            onReject: function (ui) { previewNote("Rejected: stay with " + ui.from); },
+            onContinue: function (ui) { previewNote("Kept " + ui.switch_to); },
+
+            /** Replace the footer with a message and optional buttons [{label, primary, onClick}]. */
+            footerMessage: function (text, buttons) {
+                var footer = $("footer");
+                footer.innerHTML = "";
+                var note = document.createElement("span");
+                note.className = "footer-note";
+                note.textContent = text;
+                footer.appendChild(note);
+                (buttons || []).forEach(function (b) {
+                    footer.appendChild(button(b.label, b.primary ? "btn-accept" : "btn-reject", b.onClick));
+                });
+            }
+        };
+
+        function previewNote(text) {
+            var footer = $("footer");
+            footer.innerHTML = "";
+            var note = document.createElement("span");
+            note.className = "footer-note";
+            note.textContent = text + " (preview: not sent anywhere)";
+            footer.appendChild(note);
+        }
+
+        window.CoolPitPopup = CoolPitPopup;
+
+        // ---- Preview mode: ?state=critical | green | cold | keep | loading ----
+        // "critical" is the real Gemini output for lap 45 of the 2023 Qatar GP (sample_output.json).
+        // The other states use made-up example values to show the layouts.
+        var PREVIEW = {
+            critical: {
+                meta: { lap: 45, totalLaps: 57, driver: "VER" },
+                ui: {
+                    zone: "CRITICAL_HEAT", title: "CRITICAL HEAT", status_text: "Above threshold",
+                    track_temp_c: 35.6, air_temp_c: 31.1, humidity_pct: 76.0, heat_index_c: 39.8,
+                    switch_to: "MEDIUM", from: "LOW", change_required: true,
+                    reason: "Ample capacity remaining and rising heat index justify stepping up to MEDIUM cooling.",
+                    monitor: ["Remaining capacity vs final laps", "Heat index rate of increase", "Pace consistency under green flag"],
+                    accept_label: "Change to MEDIUM", reject_label: "Stay with LOW"
+                }
+            },
+            green: {
+                meta: { lap: 20, totalLaps: 57, driver: "EXAMPLE" },
+                ui: {
+                    zone: "GREEN_ZONE", title: "GREEN ZONE", status_text: "Optimal range",
+                    track_temp_c: 32, air_temp_c: 24, humidity_pct: 58, heat_index_c: 24.5,
+                    switch_to: "LOW", from: "MEDIUM", change_required: true,
+                    reason: "Moderate heat and steady trend; step down to save capacity.",
+                    monitor: ["Heat index trend", "Remaining vest capacity", "Safety car periods"],
+                    accept_label: "Change to LOW", reject_label: "Stay with MEDIUM"
+                }
+            },
+            cold: {
+                meta: { lap: 12, totalLaps: 57, driver: "EXAMPLE" },
+                ui: {
+                    zone: "COLD_SNAP", title: "COLD SNAP", status_text: "Well below threshold",
+                    track_temp_c: 28, air_temp_c: 12, humidity_pct: 72, heat_index_c: 11.4,
+                    switch_to: "OFF", from: "MEDIUM", change_required: true,
+                    reason: "Low heat load; turning cooling off preserves full capacity.",
+                    monitor: ["Air temperature changes", "Rain risk", "Remaining vest capacity"],
+                    accept_label: "Change to OFF", reject_label: "Stay with MEDIUM"
+                }
+            },
+            keep: {
+                meta: { lap: 30, totalLaps: 57, driver: "EXAMPLE" },
+                ui: {
+                    zone: "CRITICAL_HEAT", title: "CRITICAL HEAT", status_text: "Above threshold",
+                    track_temp_c: 36, air_temp_c: 31, humidity_pct: 74, heat_index_c: 39.2,
+                    switch_to: "MEDIUM", from: "MEDIUM", change_required: false,
+                    reason: "Heat index stable; current MEDIUM setting is sufficient.",
+                    monitor: ["Heat index trend", "Remaining vest capacity", "Laps remaining"],
+                    accept_label: null, reject_label: null
+                }
+            }
+        };
+
+        // ---- Simulation view: drives the laps after a decision with the chosen vest setting ----
+        var LAP_MS = 1500;            // animation time per lap
+        var END_PAUSE_MS = 1500;      // pause before the next decision appears
+        var VEST_COLOR = { OFF: "#9ca3af", LOW: "#67e8f9", MEDIUM: "#22d3ee", HIGH: "#0ea5e9" };
+        var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        var trackReady = null;        // promise, loaded once
+
+        function loadTrack() {
+            if (trackReady) return trackReady;
+            trackReady = fetch("/api/track").then(function (r) {
+                if (!r.ok) throw new Error("no track");
+                return r.json();
+            }).then(function (t) {
+                var d = t.points.map(function (p, i) { return (i ? "L" : "M") + p[0] + " " + p[1]; }).join(" ") + " Z";
+                $("track-path").setAttribute("d", d);
+                $("track-line").setAttribute("d", d);
+                var maxY = Math.max.apply(null, t.points.map(function (p) { return p[1]; }));
+                $("track-svg").setAttribute("viewBox", "-40 -40 1080 " + Math.round(maxY + 80));
+                return true;
+            }).catch(function () {
+                $("track-svg").style.display = "none";   // simulation still runs without the map
+                return false;
+            });
+            return trackReady;
+        }
+
+        function placeCar(fraction) {
+            var path = $("track-line");
+            if (!path.getTotalLength || !path.getAttribute("d")) return;
+            var len = path.getTotalLength();
+            var p = path.getPointAtLength((fraction % 1) * len);
+            ["car", "car-halo"].forEach(function (id) {
+                $(id).setAttribute("cx", p.x);
+                $(id).setAttribute("cy", p.y);
+            });
+        }
+
+        function showSimLap(sim, i) {
+            var lap = sim.laps[i];
+            $("sim-lap").textContent = lap.lap + " / " + sim.totalLaps;
+            $("sim-hi").textContent = lap.heat_index_c + "°C";
+            $("sim-air").textContent = lap.air_temp_c + "°C";
+            var status = $("sim-status");
+            status.textContent = lap.track_status.replace("_", " ");
+            status.className = lap.track_status === "GREEN" ? "" : "flag";
+            setCapacity(lap.capacity_pct);
+            var row = document.createElement("div");
+            row.className = "new";
+            row.textContent = "Lap " + lap.lap + " · HI " + lap.heat_index_c + "°C · " +
+                lap.track_status.replace("_", " ") + " · " + lap.capacity_pct + "%";
+            var log = $("lap-log");
+            Array.prototype.forEach.call(log.children, function (c) { c.className = ""; });
+            log.appendChild(row);
+            log.scrollTop = log.scrollHeight;
+            $("sim-progress").textContent = "Driving lap " + lap.lap + " (" + (i + 1) + " of " + sim.laps.length +
+                ") with the vest on " + sim.setting_after + "…";
+        }
+
+        function setCapacity(pct) {
+            $("capacity-value").textContent = pct + "%";
+            $("capacity-fill").style.width = Math.max(0, Math.min(100, pct)) + "%";
+        }
+
+        function setupSimView(sim, meta) {
+            var first = sim.laps.length ? sim.laps[0].lap : sim.decision_lap;
+            var last = sim.laps.length ? sim.laps[sim.laps.length - 1].lap : sim.decision_lap;
+            $("sim-sub").textContent = "LAPS " + first + "–" + last + " · " + (meta.race || "") + " · " + (meta.driver || "");
+
+            var badge = $("sim-badge");
+            badge.className = "sim-badge";
+            if (!sim.change_required) {
+                badge.textContent = "No change · " + sim.setting_after;
+            } else if (sim.accepted) {
+                badge.textContent = "Accepted · " + sim.setting_before + " → " + sim.setting_after;
+            } else {
+                badge.textContent = "Rejected · stayed " + sim.setting_after;
+                badge.className = "sim-badge rejected";
+            }
+
+            document.querySelectorAll("#levels .level").forEach(function (el) {
+                var lvl = el.dataset.level;
+                el.classList.toggle("active", lvl === sim.setting_after);
+                el.classList.toggle("was", sim.setting_before !== sim.setting_after && lvl === sim.setting_before);
+            });
+            var rate = "−" + sim.capacity_use_per_lap + "% capacity per lap";
+            $("level-note").textContent = !sim.change_required ? "Kept " + sim.setting_after + " · " + rate
+                : sim.accepted ? "Changed " + sim.setting_before + " → " + sim.setting_after + " · " + rate
+                : "Kept " + sim.setting_after + " (Gemini recommended " + sim.recommended + ") · " + rate;
+
+            var color = VEST_COLOR[sim.setting_after] || "#22d3ee";
+            $("car").setAttribute("fill", color);
+            $("car-halo").setAttribute("fill", color);
+            $("car-halo").setAttribute("r", { OFF: 0, LOW: 20, MEDIUM: 26, HIGH: 34 }[sim.setting_after] || 24);
+            $("lap-log").innerHTML = "";
+            setCapacity(sim.capacity_before);
+            $("sim-lap").textContent = sim.decision_lap + " / " + sim.totalLaps;
+        }
+
+        // ---- 3D cooling vest bridge ----
+        // Drives the teammate's page (F1 Cooling Vest 3D.html, served at /vest3d) by pressing its own
+        // pump / voltage buttons. Any change there starts its ~40 s cinematic; we wait for its progress bar
+        // to appear and disappear again. The teammate's file itself is not modified.
+        var VEST3D_TIMEOUT_MS = 80000;
+
+        function vest3dDoc() {
+            try {
+                var doc = $("vest3d").contentDocument;
+                return doc && doc.getElementById("coolBtn") && doc.getElementById("progress") ? doc : null;
+            } catch (e) { return null; }
+        }
+
+        function loadVest3d() {
+            var frame = $("vest3d");
+            if (!frame.getAttribute("src")) frame.setAttribute("src", "/vest3d");
+        }
+
+        /** Show the 3D cinematic for the new setting. Resolves true when it played, false when skipped/unavailable. */
+        function play3D(setting, airTempC, lap) {
+            return new Promise(function (resolve) {
+                var doc = vest3dDoc();
+                var progress = doc && doc.getElementById("progress");
+                if (!doc || !progress.hidden) return resolve(false);   // not loaded yet, or still busy
+
+                var win = $("vest3d").contentWindow;
+                var temp = doc.getElementById("temp");
+                temp.value = Math.max(20, Math.min(40, Math.round(airTempC)));
+                temp.dispatchEvent(new win.Event("input", { bubbles: true }));
+
+                var coolBtn = doc.getElementById("coolBtn");
+                var on = coolBtn.getAttribute("aria-pressed") === "true";
+                var volt = function (v) { return doc.querySelector('[data-volt="' + v + '"]'); };
+                var current = (doc.querySelector('[data-volt][aria-pressed="true"]') || {}).dataset;
+                current = current ? current.volt : "medium";
+
+                // The first click starts the cinematic; any click after that only changes the state it ends in.
+                if (setting === "OFF") {
+                    if (on) coolBtn.click(); else { coolBtn.click(); coolBtn.click(); }
+                } else {
+                    var v = setting.toLowerCase();
+                    if (!on) { if (current !== v) volt(v).click(); coolBtn.click(); }
+                    else if (current !== v) volt(v).click();
+                    else { volt(v === "high" ? "medium" : "high").click(); volt(v).click(); }
+                }
+
+                var stage = $("stage3d");
+                stage.classList.add("show");
+                stage.setAttribute("aria-hidden", "false");
+                $("stage3d-text").textContent = "Lap " + lap + " · cooling vest set to " + setting +
+                    " · air " + Math.round(airTempC) + "°C";
+
+                var started = false, t0 = Date.now(), timer;
+                function end(played) {
+                    clearInterval(timer);
+                    stage.classList.remove("show");
+                    stage.setAttribute("aria-hidden", "true");
+                    resolve(played);
+                }
+                $("stage3d-skip").onclick = function () { end(false); };
+                timer = setInterval(function () {
+                    if (!progress.hidden) started = true;
+                    if ((started && progress.hidden) || Date.now() - t0 > VEST3D_TIMEOUT_MS) end(true);
+                }, 250);
+            });
+        }
+
+        CoolPitPopup.play3D = play3D;
+
+        /** Play the laps after a decision, then call done(). meta = state from /api/respond. */
+        function playSimulation(sim, meta, done) {
+            if (!sim || !sim.laps || !sim.laps.length) return done();
+            sim.totalLaps = meta.total_laps;
+            $("card").hidden = true;
+            // A change the engineer accepted is shown in 3D first, then the lap-by-lap simulation
+            if (sim.change_required && sim.accepted && vest3dDoc()) {
+                play3D(sim.setting_after, sim.laps[0].air_temp_c, sim.decision_lap).then(function () {
+                    playLaps(sim, meta, done);
+                });
+            } else {
+                playLaps(sim, meta, done);
+            }
+        }
+
+        function playLaps(sim, meta, done) {
+            $("sim").hidden = false;
+            setupSimView(sim, meta);
+
+            var finished = false, shown = -1, startTime = null, endTimer = null;
+            function finish() {
+                if (finished) return;
+                finished = true;
+                showUpTo(sim.laps.length - 1);
+                placeCar(0);
+                $("sim-progress").textContent = meta.finished ? "Race finished." : "Next decision at lap " + meta.lap + ".";
+                $("sim-skip").disabled = true;
+                endTimer = setTimeout(leave, END_PAUSE_MS);
+            }
+            function leave() {
+                clearTimeout(endTimer);
+                $("sim").hidden = true;
+                $("card").hidden = false;
+                done();
+            }
+            function showUpTo(i) {
+                while (shown < i) { shown++; showSimLap(sim, shown); }
+            }
+            function frame(now) {
+                if (finished) return;
+                if (startTime === null) startTime = now;
+                var t = (now - startTime) / LAP_MS;
+                if (t >= sim.laps.length) return finish();
+                showUpTo(Math.floor(t));
+                placeCar(t);
+                requestAnimationFrame(frame);
+            }
+
+            var skip = $("sim-skip");
+            skip.disabled = false;
+            skip.onclick = function () { if (finished) leave(); else finish(); };
+
+            loadTrack().then(function () {
+                placeCar(0);
+                if (reduceMotion) { finish(); } else { requestAnimationFrame(frame); }
+            });
+        }
+
+        CoolPitPopup.playSimulation = playSimulation;
+
+        // ---- Live mode: served by demo/demo_server.py (http://localhost:5000) ----
+        function api(method, path, body) {
+            return fetch(path, {
+                method: method,
+                headers: { "Content-Type": "application/json" },
+                body: body ? JSON.stringify(body) : undefined
+            }).then(function (r) {
+                return r.json().then(function (data) {
+                    if (!r.ok) throw new Error(data.error || ("HTTP " + r.status));
+                    return data;
+                });
+            });
+        }
+
+        function renderDecision(d) {
+            CoolPitPopup.render(d.ui, {
+                lap: d.lap, totalLaps: d.total_laps, driver: d.driver, vest: d.vest_state, source: d.source
+            });
+        }
+
+        function loadLap(st) {
+            if (st.finished) return showFinished(st);
+            CoolPitPopup.showLoading("Analysing lap " + st.lap + "…");
+            $("subtitle").textContent = "LAP " + st.lap + " / " + st.total_laps + " · " + st.driver +
+                " · VEST " + st.vest_state.setting + " · " + st.vest_state.capacity_remaining_pct + "% LEFT";
+            api("POST", "/api/decide").then(renderDecision).catch(showError);
+        }
+
+        function sendResponse(accepted, message) {
+            CoolPitPopup.footerMessage(message);
+            api("POST", "/api/respond", { accepted: accepted }).then(function (st) {
+                if (!("simulation" in st)) {
+                    // server started before the simulation feature was added
+                    CoolPitPopup.footerMessage("No simulation data: the demo server is running old code. " +
+                        "Stop it (Ctrl+C) and start it again.", [{
+                        label: "Continue without simulation", primary: false,
+                        onClick: function () { loadLap(st); }
+                    }]);
+                    return;
+                }
+                playSimulation(st.simulation, st, function () { loadLap(st); });
+            }).catch(showError);
+        }
+
+        function showError(err) {
+            $("card").classList.remove("is-loading");
+            CoolPitPopup.footerMessage("Could not reach the demo server: " + err.message, [{
+                label: "Retry", primary: true,
+                onClick: function () { api("GET", "/api/state").then(start).catch(showError); }
+            }]);
+        }
+
+        function showFinished(st) {
+            var card = $("card");
+            card.classList.remove("is-loading");
+            card.dataset.zone = "LOADING";
+            $("title").textContent = "Race finished";
+            $("subtitle").textContent = st.race + " · " + st.driver + " · VEST " + st.vest_state.setting +
+                " · " + st.vest_state.capacity_remaining_pct + "% LEFT";
+            $("status").textContent = st.history.length + " decisions made";
+
+            var changes = st.history.filter(function (h) { return h.change_required; });
+            var accepted = changes.filter(function (h) { return h.accepted; }).length;
+            var recommendation = $("recommendation");
+            recommendation.innerHTML = "";
+            [["rec-label", "Accepted changes"],
+             ["rec-value", accepted + " / " + changes.length],
+             ["rec-reason", "Final setting " + st.vest_state.setting + " with " +
+                 st.vest_state.capacity_remaining_pct + "% capacity left."]].forEach(function (p) {
+                var el = document.createElement("div");
+                el.className = p[0];
+                el.textContent = p[1];
+                recommendation.appendChild(el);
+            });
+
+            renderMonitor(st.history.map(function (h) {
+                var what = !h.change_required ? "kept " + h.applied_setting
+                    : (h.accepted ? "accepted " : "rejected ") + h.previous + " → " + h.recommended;
+                return "Lap " + h.lap + ": " + what;
+            }));
+            CoolPitPopup.footerMessage("Replay finished.", [{
+                label: "Restart race", primary: true,
+                onClick: function () { this.disabled = true; api("POST", "/api/reset").then(loadLap).catch(showError); }
+            }]);
+        }
+
+        function start(st) {
+            // After a page refresh, reuse the decision already made for this lap (saves Gemini quota)
+            if (st.last && st.last.lap === st.lap && !st.finished) return renderDecision(st.last);
+            loadLap(st);
+        }
+
+        var params = new URLSearchParams(location.search);
+        var previewState = params.get("state");
+        var LIVE = /^https?:$/.test(location.protocol) && !previewState;
+
+        if (LIVE) {
+            CoolPitPopup.onAccept = function (ui) { sendResponse(true, "Changed to " + ui.switch_to + ". Moving to the next lap…"); };
+            CoolPitPopup.onReject = function (ui) { sendResponse(false, "Staying with " + ui.from + ". Moving to the next lap…"); };
+            CoolPitPopup.onContinue = function (ui) { sendResponse(false, "Keeping " + ui.switch_to + ". Moving to the next lap…"); };
+            loadVest3d();   // load the 3D page in the background so it is ready by the first accepted change
+            api("GET", "/api/state").then(start).catch(showError);
+        } else if (previewState === "3d") {
+            // preview of the 3D step through the server (http://localhost:5000/?state=3d)
+            loadVest3d();
+            $("card").hidden = true;
+            var tryPlay = function () {
+                if (!vest3dDoc()) return setTimeout(tryPlay, 500);
+                CoolPitPopup.play3D("MEDIUM", 31.9, 15).then(function (played) {
+                    $("card").hidden = false;
+                    CoolPitPopup.render(PREVIEW.critical.ui, PREVIEW.critical.meta);
+                    CoolPitPopup.footerMessage("3D preview finished (" + (played ? "played" : "skipped") + ").");
+                });
+            };
+            tryPlay();
+        } else if (previewState === "sim") {
+            // preview of the simulation view with example data (track map needs the server: /api/track)
+            var exampleSim = {
+                decision_lap: 15, recommended: "MEDIUM", change_required: true, accepted: true,
+                setting_before: "LOW", setting_after: "MEDIUM", capacity_before: 67.5, capacity_use_per_lap: 1.0,
+                laps: [16, 17, 18, 19, 20].map(function (n, i) {
+                    return { lap: n, heat_index_c: 41.1 - i * 0.2, air_temp_c: 31.9, track_temp_c: 37.2,
+                             humidity_pct: 74, track_status: "GREEN", lap_time_s: 88.1, capacity_pct: 66.5 - i };
+                })
+            };
+            var loop = function () {
+                CoolPitPopup.playSimulation(exampleSim, { total_laps: 57, lap: 20, race: "2023 Qatar Grand Prix",
+                    driver: "VER", finished: false }, function () { setTimeout(loop, 500); });
+            };
+            loop();
+        } else if (previewState === "loading") {
+            CoolPitPopup.render(PREVIEW.critical.ui, PREVIEW.critical.meta);
+            CoolPitPopup.showLoading("Analysing lap 45…");
+        } else {
+            // opened as a file: preview with example data (default = real lap-45 result)
+            var p = PREVIEW[previewState] || PREVIEW.critical;
+            CoolPitPopup.render(p.ui, p.meta);
+        }
+    })();
+    </script>
+</body>
+</html>

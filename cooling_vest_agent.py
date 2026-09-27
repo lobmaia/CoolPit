@@ -31,6 +31,7 @@ NOTE: zone and fallback thresholds below are placeholders for the prototype.
 """
 import argparse
 import json
+import os
 from datetime import datetime
 from functools import lru_cache
 from typing import Literal
@@ -40,10 +41,13 @@ import pandas as pd
 from pydantic import BaseModel, Field
 
 MODEL = "gemini-3.8-flash"
-BACKUP_MODEL = "gemini-flash-latest"  # tried when the main model is overloaded
+# Tried when the main model is overloaded or out of quota. Must be a different model:
+# free-tier quota is per model, and "gemini-flash-latest" is just an alias of gemini-3.8-flash.
+BACKUP_MODEL = "gemini-3.7-flash"
 RETRY_WAITS_SEC = [2, 5]             # waits before retrying on 503/429
-CACHE_DIR = "./f1_cache"
-LOG_FILE = "./vest_decisions.jsonl"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # paths work no matter which folder you run from
+CACHE_DIR = os.path.join(BASE_DIR, "f1_cache")
+LOG_FILE = os.path.join(BASE_DIR, "vest_decisions.jsonl")
 
 SETTINGS = ["OFF", "LOW", "MEDIUM", "HIGH"]
 TRACK_STATUS = {"1": "GREEN", "2": "YELLOW", "4": "SAFETY_CAR", "5": "RED_FLAG", "6": "VSC", "7": "VSC_ENDING"}

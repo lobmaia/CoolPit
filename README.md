@@ -24,6 +24,41 @@ input JSON ──▶ race context for the lap (weather, heat index + trend, trac
 | `sample_output.json` | Example output from a real Gemini call (lap 45) |
 | `test_gemini.py` | Checks that your Gemini API key works |
 | `HTML schemas/popup_ui*.html` | Pit-wall pop-up mockups (critical heat / green zone / cold snap) |
+| `F1 Cooling Vest 3D.html` | 3D cooling vest scene (driver, coolant flow, Lusail circuit, race start) |
+| `demo/` | Interactive demo: pop-up + lap simulation + 3D vest, served by a small Flask server |
+
+## Demo (pop-up → 3D vest → race simulation)
+
+```powershell
+python demo\demo_server.py --replay     # then open http://localhost:5000
+```
+
+1. The pop-up shows Gemini's recommendation for the current lap. Click **Accept**, **Reject**, or **Continue**.
+2. An accepted change plays the 3D cooling vest scene (`F1 Cooling Vest 3D.html`) with the new setting,
+   then a lap-by-lap simulation (track map, vest level, capacity drain). Unchanged settings skip the 3D part.
+3. The next pop-up appears, 5 laps later. The race ends with a summary.
+
+| Option | Meaning |
+|---|---|
+| `--replay` | Use the recorded Gemini answers in `demo/saved_responses.json` (no API key or quota needed). Follow the recorded path: **Accept** every change. |
+| `--offline` | Never call Gemini; laps without a recording use the rule-based fallback |
+| (neither) | Call Gemini live for every decision (needs `GEMINI_API_KEY` with quota) |
+| `--start-lap`, `--step` | First lap and laps per decision (the recording uses 10 and 5) |
+| `--host 0.0.0.0` | Let others on the same Wi-Fi open `http://<your-ip>:5000` |
+
+Previews without clicking through: `http://localhost:5000/?state=sim` (lap simulation) and `?state=3d` (3D step).
+
+| Demo file | What it is |
+|---|---|
+| `demo/demo_server.py` | Flask server: decisions, Accept/Reject, simulation data, serves the pages |
+| `demo/popup.html` | Pop-up template (from `HTML schemas/`), simulation view, 3D bridge |
+| `demo/saved_responses.json` | Recorded Gemini answers for the replay path |
+| `demo/record_responses.py` | Records new answers: `python demo\record_responses.py --start-lap 10 --step 5` |
+| `demo/track.json`, `demo/make_track.py` | Lusail circuit outline for the track map, and the script that made it |
+| `demo/vendor/` | Local copy of Three.js, so the 3D scene works without internet |
+
+Free-tier Gemini quota is **20 requests per day, per Google project, per model**. New keys in the same
+project share it; `gemini-flash-latest` is an alias of `gemini-3.8-flash`.
 
 ## Setup
 

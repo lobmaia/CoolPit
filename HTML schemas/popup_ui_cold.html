@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cooling System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .card {
+            width: 100%;
+            max-width: 850px;
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            padding: 28px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-left {
+            flex: 1;
+        }
+
+        .header-right {
+            flex-shrink: 0;
+            width: 220px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .dashboard {
+            width: 210px;
+            padding: 12px 14px 10px 14px;
+            background: linear-gradient(180deg, #1a1a24 0%, #0a0a12 100%);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+            position: relative;
+        }
+
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+            padding: 0 4px;
+        }
+
+        .dashboard-label {
+            font-family: 'Courier New', monospace;
+            font-size: 9px;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.5);
+            letter-spacing: 1.5px;
+        }
+
+        .status-led {
+            width: 6px;
+            height: 6px;
+            background: #3b82f6;
+            border-radius: 50%;
+            box-shadow: 0 0 6px rgba(59, 130, 246, 0.9);
+            animation: ledPulse 1s ease-in-out infinite;
+        }
+
+        .gauge-svg {
+            display: block;
+            margin: 0 auto;
+            width: 100%;
+            height: 90px;
+        }
+
+        .needle-path {
+            transform-origin: 90px 92px;
+            transform-box: view-box;
+            animation: f1NeedleSweep 2.5s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
+        }
+
+        .dashboard-readout {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 4px 0 4px;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+            margin-top: 4px;
+        }
+
+        .temp-display {
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            font-weight: 800;
+            color: #fbbf24;
+            letter-spacing: 1px;
+            text-shadow: 0 0 8px rgba(251, 191, 36, 0.5);
+        }
+
+        .temp-unit-label {
+            font-family: 'Courier New', monospace;
+            font-size: 9px;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.4);
+            letter-spacing: 1px;
+        }
+
+        @keyframes f1NeedleSweep {
+            0% {
+                transform: rotate(-90deg);
+            }
+            100% {
+                transform: rotate(75deg);
+            }
+        }
+
+        @keyframes ledPulse {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+        }
+
+        .title {
+            font-size: 28px;
+            font-weight: 900;
+            color: white;
+            margin: 0;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .subtitle {
+            display: none;
+        }
+
+        .body {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 32px;
+            padding: 36px 32px;
+        }
+
+        /* Column styling */
+        .column {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .conditions {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .cond-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+        }
+
+        .cond-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .cond-value {
+            font-size: 26px;
+            font-weight: 700;
+            color: #1f2937;
+        }
+
+        .status {
+            margin-top: 16px;
+            padding: 12px 14px;
+            background: #eff6ff;
+            border-left: 3px solid #3b82f6;
+            font-size: 13px;
+            color: #1e40af;
+            font-weight: 500;
+        }
+
+        /* Recommendation */
+        .recommendation {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            gap: 14px;
+        }
+
+        .rec-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: #9ca3af;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+        }
+
+        .rec-value {
+            font-size: 42px;
+            font-weight: 800;
+            color: #3b82f6;
+            letter-spacing: -0.5px;
+        }
+
+        .rec-current {
+            font-size: 15px;
+            color: #1f2937;
+            margin-bottom: 8px;
+            font-weight: 600;
+            background: #f3f4f6;
+            padding: 8px 16px;
+            border-radius: 6px;
+        }
+
+        .rec-reason {
+            font-size: 13px;
+            color: #4b5563;
+            line-height: 1.5;
+            max-width: 140px;
+        }
+
+        /* Risks */
+        .risks {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .risks-title {
+            font-size: 11px;
+            font-weight: 700;
+            color: #9ca3af;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            margin-bottom: 2px;
+        }
+
+        .risk-item {
+            display: flex;
+            gap: 10px;
+            font-size: 13px;
+            color: #374151;
+            line-height: 1.4;
+            padding: 8px 10px;
+            background: #f9fafb;
+            border-radius: 6px;
+            border-left: 2px solid #bfdbfe;
+        }
+
+        .risk-icon {
+            font-size: 14px;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        /* Footer */
+        .footer {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            padding: 20px 32px;
+            background: #f9fafb;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .btn {
+            padding: 11px 32px;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-accept {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-accept:hover {
+            background: #1d4ed8;
+        }
+
+        .btn-accept:active {
+            background: #1e40af;
+        }
+
+        .btn-reject {
+            background: white;
+            color: #6b7280;
+            border: 1px solid #d1d5db;
+        }
+
+        .btn-reject:hover {
+            background: #f3f4f6;
+            color: #374151;
+        }
+
+        .btn-reject:active {
+            background: #e5e7eb;
+        }
+
+        @media (max-width: 768px) {
+            .body {
+                grid-template-columns: 1fr;
+                gap: 28px;
+                padding: 28px 24px;
+            }
+
+            .title {
+                font-size: 16px;
+            }
+
+            .subtitle {
+                font-size: 12px;
+            }
+
+            .rec-value {
+                font-size: 36px;
+            }
+
+            .cond-value {
+                font-size: 22px;
+            }
+
+            .footer {
+                padding: 16px 24px;
+                gap: 10px;
+            }
+
+            .btn {
+                padding: 10px 28px;
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="header">
+            <div class="header-left">
+                <h1 class="title">COLD SNAP</h1>
+            </div>
+            <div class="header-right">
+                <div class="dashboard">
+                    <div class="dashboard-header">
+                        <span class="dashboard-label">TEMP MONITOR</span>
+                        <div class="status-led"></div>
+                    </div>
+                    <svg class="gauge-svg" viewBox="0 0 200 130" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" style="stop-color:#0369a1"/>
+                                <stop offset="20%" style="stop-color:#06b6d4"/>
+                                <stop offset="45%" style="stop-color:#84cc16"/>
+                                <stop offset="65%" style="stop-color:#fbbf24"/>
+                                <stop offset="85%" style="stop-color:#f97316"/>
+                                <stop offset="100%" style="stop-color:#dc2626"/>
+                            </linearGradient>
+                        </defs>
+
+                        <path d="M 20 110 A 80 80 0 0 1 180 110" fill="none" stroke="#1a1a24" stroke-width="18"/>
+                        <path d="M 20 110 A 80 80 0 0 1 180 110" fill="none" stroke="url(#gaugeGrad)" stroke-width="12" stroke-linecap="round"/>
+
+                        <g stroke="rgba(255,255,255,0.5)" stroke-width="2" stroke-linecap="round">
+                            <line x1="25" y1="105" x2="32" y2="98"/>
+                            <line x1="50" y1="65" x2="56" y2="61"/>
+                            <line x1="100" y1="30" x2="100" y2="38"/>
+                            <line x1="150" y1="65" x2="144" y2="61"/>
+                            <line x1="175" y1="105" x2="168" y2="98"/>
+                        </g>
+
+                        <g fill="rgba(255,255,255,0.7)" font-family="Courier New, monospace" font-size="10" font-weight="700">
+                            <text x="20" y="125" text-anchor="middle">C</text>
+                            <text x="180" y="125" text-anchor="middle">H</text>
+                        </g>
+
+                        <line x1="100" y1="110" x2="100" y2="35" stroke="#ffff00" stroke-width="4" stroke-linecap="round" transform="rotate(-90 100 110)">
+                            <animateTransform attributeName="transform" type="rotate" values="-90 100 110; -60 100 110" dur="2s" repeatCount="1" fill="freeze"/>
+                        </line>
+
+                        <circle cx="100" cy="110" r="10" fill="#1a1a24" stroke="#ffd700" stroke-width="2"/>
+                        <circle cx="100" cy="110" r="5" fill="#ffd700"/>
+                    </svg>
+                    <div class="dashboard-readout">
+                        <span class="temp-unit-label">TRACK</span>
+                        <span class="temp-display">28°C</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="body">
+            <div class="column">
+                <div class="conditions">
+                    <div class="cond-item">
+                        <span class="cond-label">Air</span>
+                        <span class="cond-value">12°</span>
+                    </div>
+                    <div class="cond-item">
+                        <span class="cond-label">Track</span>
+                        <span class="cond-value">28°</span>
+                    </div>
+                    <div class="cond-item">
+                        <span class="cond-label">Humidity</span>
+                        <span class="cond-value">72%</span>
+                    </div>
+                </div>
+                <div class="status">✓ Well below threshold</div>
+            </div>
+
+            <div class="recommendation">
+                <div class="rec-label">Switch to</div>
+                <div class="rec-value">OFF</div>
+                <div class="rec-current">From: MEDIUM</div>
+                <div class="rec-reason">Thermal load well below threshold. Maximize power output with passive cooling.</div>
+            </div>
+
+            <div class="risks">
+                <div class="risks-title">Monitor</div>
+                <div class="risk-item">
+                    <span class="risk-icon">•</span>
+                    <span>Extended tire warm-up period (10+ laps)</span>
+                </div>
+                <div class="risk-item">
+                    <span class="risk-icon">•</span>
+                    <span>Under-temperature braking initially</span>
+                </div>
+                <div class="risk-item">
+                    <span class="risk-icon">•</span>
+                    <span>Overcooling risk minimal in cold weather</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <button class="btn btn-accept" onclick="handleAccept()">Change to OFF</button>
+            <button class="btn btn-reject" onclick="handleReject()">Stay with MEDIUM</button>
+        </div>
+    </div>
+
+    <script>
+        function handleAccept() {
+            alert('✓ Cooling changed to OFF');
+        }
+
+        function handleReject() {
+            alert('✗ Staying with MEDIUM');
+        }
+    </script>
+</body>
+</html>
