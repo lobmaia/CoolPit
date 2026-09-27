@@ -63,6 +63,52 @@ def advance_vest(vest_state, decision, accepted, step):
     return vest
 
 
+_field_cache = {}
+
+
+def race_field(year, event):
+    """Every driver's lap timing (session seconds) and team colour, loaded once per race."""
+    key = (year, event)
+    if key not in _field_cache:
+        session = agent.load_race(year, event)
+        colors = {}
+        for _, r in session.results.iterrows():
+            c = str(r.get("TeamColor") or "")
+            colors[r["Abbreviation"]] = "#" + c if len(c) == 6 else "#9aa4b2"
+        drivers = {}
+        laps = session.laps[["Driver", "Team", "LapNumber", "LapStartTime", "LapTime"]].dropna(subset=["LapStartTime"])
+        for drv, g in laps.sort_values("LapNumber").groupby("Driver"):
+            rows = []
+            starts = list(g["LapStartTime"].dt.total_seconds())
+            for i, (_, r) in enumerate(g.iterrows()):
+                dur = r["LapTime"].total_seconds() if r["LapTime"] == r["LapTime"] else None
+                if dur is None and i + 1 < len(starts):
+                    dur = starts[i + 1] - starts[i]
+                if dur:
+                    rows.append((int(r["LapNumber"]), starts[i], dur))
+            drivers[drv] = {"team": g["Team"].iloc[0], "color": colors.get(drv, "#9aa4b2"), "laps": rows}
+        _field_cache[key] = drivers
+    return _field_cache[key]
+
+
+def build_field(raw, first_lap, last_lap):
+    """All cars' laps overlapping our driver's laps first_lap..last_lap, as times relative to the window start."""
+    field = race_field(raw["year"], raw["event"])
+    ours = {n: (s, d) for n, s, d in field[raw["driver"]]["laps"]}
+    if first_lap not in ours or last_lap not in ours:
+        return None
+    t0 = ours[first_lap][0]
+    t1 = ours[last_lap][0] + ours[last_lap][1]
+    drivers = []
+    for code, d in field.items():
+        laps = [[n, round(s - t0, 2), round(dur, 2)] for n, s, dur in d["laps"] if s < t1 and s + dur > t0 - 5]
+        if laps:
+            drivers.append({"code": code, "team": d["team"], "color": d["color"], "laps": laps})
+    return {"duration_s": round(t1 - t0, 2), "ours": raw["driver"],
+            "our_lap_starts": [[n, round(ours[n][0] - t0, 2)] for n in range(first_lap, last_lap + 1) if n in ours],
+            "drivers": drivers}
+
+
 def build_simulation(raw, decision, accepted, vest_after, step, total_laps):
     """Per-lap data for the laps driven after the decision, for the page's simulation view."""
     laps, _ = agent._race_data(raw["year"], raw["event"], raw["driver"])
@@ -85,7 +131,10 @@ def build_simulation(raw, decision, accepted, vest_after, step, total_laps):
             "lap_time_s": round(float(r["LapTimeS"]), 3) if r["LapTimeS"] == r["LapTimeS"] else None,
             "capacity_pct": capacity,
         })
+    field = build_field(raw, rows[0]["lap"], rows[-1]["lap"]) if rows else None
     return {
+        "field": field,
+        "race": f"{raw['year']} {raw['event']}",
         "decision_lap": raw["current_lap"],
         "recommended": decision["new_setting"],
         "change_required": decision["change_required"],
@@ -178,6 +227,16 @@ def get_track():
     if not os.path.exists(path):
         return jsonify({"error": "No track.json. Run python demo/make_track.py once."}), 404
     return send_from_directory(DEMO_DIR, "track.json")
+
+
+@app.get("/api/preview-sim")
+def preview_sim():
+    """Example simulation (laps after lap 15, LOW → MEDIUM accepted) without touching the demo state."""
+    raw = copy.deepcopy(state["start_raw"])
+    raw["current_lap"] = int(request.args.get("lap", 15))
+    decision = {"new_setting": "MEDIUM", "previous_setting": raw["vest_state"]["setting"], "change_required": True}
+    vest = advance_vest(raw["vest_state"], decision, True, config["step"])
+    return jsonify(build_simulation(raw, decision, True, vest, config["step"], state["total_laps"]))
 
 
 @app.get("/api/state")
